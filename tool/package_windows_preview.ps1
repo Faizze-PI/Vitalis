@@ -11,7 +11,27 @@ $PackageName = "VITALIS-$Version-windows-x64"
 $Destination = Join-Path $OutputDirectory $PackageName
 if (Test-Path -LiteralPath $Destination) { throw 'Choose a fresh output directory; existing packages are preserved.' }
 New-Item -ItemType Directory -Path $Destination -Force | Out-Null
-Copy-Item -Path (Join-Path $Build '*') -Destination $Destination -Recurse
+# An incremental output folder can retain old plugin DLLs. CMake's completed
+# install manifest is the authority for this build; preserve, but never ship,
+# unrelated/stale files from previous builds.
+$InstallManifest = Join-Path $Project 'build/windows/x64/install_manifest.txt'
+if (-not (Test-Path -LiteralPath $InstallManifest)) { throw 'The completed build install manifest is missing.' }
+$BuildRoot = (Resolve-Path -LiteralPath $Build).Path
+foreach ($InstalledFile in (Get-Content -LiteralPath $InstallManifest)) {
+    $InstalledFile = $InstalledFile.Trim()
+    if (-not $InstalledFile) { continue }
+    $InstalledPath = (Resolve-Path -LiteralPath $InstalledFile).Path
+    if (-not $InstalledPath.StartsWith($BuildRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'An installation manifest entry escapes the application output folder.'
+    }
+    $Relative = [IO.Path]::GetRelativePath($BuildRoot, $InstalledPath)
+    $Target = Join-Path $Destination $Relative
+    New-Item -ItemType Directory -Path (Split-Path $Target -Parent) -Force | Out-Null
+    Copy-Item -LiteralPath $InstalledPath -Destination $Target
+}
+# CMake omits the no-op install when the runner is already in its destination.
+# Add this one known build target explicitly, never the rest of the output glob.
+Copy-Item -LiteralPath (Join-Path $Build 'VITALIS.exe') -Destination $Destination
 
 # The locked sqflite_common_ffi v2 package supplies this SQLite runtime.
 # Resolve its exact package, never download a DLL or search arbitrary directories.
@@ -55,6 +75,11 @@ foreach ($Name in @('llama.dll','ggml.dll','ggml-base.dll','ggml-cpu.dll','flutt
 if (Get-ChildItem -LiteralPath $Destination -Recurse -File | Where-Object Extension -in @('.gguf','.jks','.keystore','.pdb')) {
     throw 'Unexpected model, signing material or debug symbols in preview.'
 }
+$Tools = Get-ChildItem -LiteralPath (Join-Path $VisualStudio 'VC/Tools/MSVC') -Directory |
+    Where-Object Name -match '^\d+\.' | Sort-Object Name -Descending | Select-Object -First 1
+if (-not $Tools) { throw 'Cannot locate the build-tool dependency inspector.' }
+$Dumpbin = Join-Path $Tools.FullName 'bin/Hostx64/x64/dumpbin.exe'
+& (Join-Path $PSScriptRoot 'verify_windows_bundle.ps1') -Bundle $Destination -Dumpbin $Dumpbin -Report (Join-Path $OutputDirectory 'bundle-inspection.json')
 @{ source=$Source; version=$Version; platform='windows-x64'; backend='cpu'; signing='unsigned-testing-preview'; sqlite_sha256=(Get-FileHash $Sqlite -Algorithm SHA256).Hash } |
     ConvertTo-Json | Set-Content (Join-Path $Destination 'BUILD_PROVENANCE.json')
 @'

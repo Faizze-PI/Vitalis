@@ -14,10 +14,10 @@ Model weights download separately. No production signing material is included.
 
 ## Windows portable preview
 
-Windows development source: `81de637ef70855039e6273e4cad67df5081d333d`. Its source-only export is in the subsequent Windows commit on this repository's main branch; the binary carries its development identity in BUILD_PROVENANCE.json. The existing v1.0.1 tag identifies the earlier Android source export. The two preview assets therefore have distinct source identities.
+Windows development source: `d5800b39bce5266d84f7f5584fd6070ed79fe45b`. Its source-only export is pinned by the immutable `windows-v1.0.1` tag; the binary carries its development identity in BUILD_PROVENANCE.json. The existing v1.0.1 tag identifies the earlier Android source export. The two preview assets therefore have distinct source identities.
 
 File: `VITALIS-1.0.1-windows-x64.zip`
 
-SHA-256: `881b0a4147c57473ec62e0c8248e53fc7cbe0e2c298f2ddb849c1210736b4a9d`
+SHA-256: `37adef8e70a106a771e3651a26f656b2d41dd848a5d441723b814a117359f032`
 
 Unsigned x64 release-mode CPU testing preview; model weights are not included.

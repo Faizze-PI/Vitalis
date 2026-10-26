@@ -4,7 +4,7 @@ The official Flutter x64 runner retains Provider, the model registry, GGUF valid
 
 Windows initializes sqflite_common_ffi inside the observable startup database task. New databases, imported models, default downloads and logs use application support. Android locations are retained. Windows memory, low-memory, power and disk readings use SDK APIs; thermal and performance-core classification remain unknown and tuning stays conservative. Downloads use the shared foreground transfer adapter and recover persisted partial work at restart; Android background-service guarantees do not apply.
 
-JNI 1.0.0 fails MSVC because its bundled header unconditionally uses GCC export syntax. Only JNI and its required jni_util package were upgraded; other lockfile versions were preserved.
+JNI arrives only through the Android path_provider adapter. Windows uses the Win32 implementation. Windows CMake therefore disables discovery of the unused JNI bridge, retaining the Android-tested lockfile instead of shipping a Java dependency. The bundle verifier rejects dartjni.dll, jvm.dll and unresolved non-system dependencies. An earlier targeted JNI upgrade was superseded after the bundle audit exposed its JVM dependency. Packaging follows the completed CMake install manifest to exclude stale output files without deleting them.
 
 The release folder must be packaged in full with SQLite, C++ runtime dependencies and licences using tool/package_windows_preview.ps1 after source checkpointing. A portable ZIP is a testing preview, not formal Windows ratification. Actual UI and native inference acceptance remains in progress. Linux and Vulkan are deferred.
 

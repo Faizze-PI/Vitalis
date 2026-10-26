@@ -55,6 +55,10 @@ add_subdirectory("runner")
 
 # Generated plugin build rules, which manage building the plugins and adding
 # them to the application.
+# JNI arrives through path_provider_android. Windows uses the Win32 adapter;
+# do not build an unused Java bridge or require a JRE on user machines.
+# Platform adapter disposition: HC-076. Native inference validation stays enabled.
+set(CMAKE_DISABLE_FIND_PACKAGE_JNI TRUE)
 include(flutter/generated_plugins.cmake)
 
 
