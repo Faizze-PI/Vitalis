@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+  <exclude domain="database" path="vitalis.db"/>
+  <exclude domain="database" path="vitalis.db-wal"/>
+  <exclude domain="database" path="vitalis.db-shm"/>
+  <exclude domain="sharedpref" path="FlutterSharedPreferences.xml"/>
+</full-backup-content>

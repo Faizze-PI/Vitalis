@@ -1,0 +1,55 @@
+name: vitalis_app
+description: On-device, context-aware AI assistant with integrated knowledge management.
+repository: https://github.com/Faizze-PI/Vitalis
+issue_tracker: https://github.com/Faizze-PI/Vitalis/issues
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.0
+  flutter: ">=3.44.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  provider: 6.1.5+1
+  sqflite: 2.4.2+1
+  path_provider: 2.1.5
+  flutter_markdown_plus: 1.0.7
+  shared_preferences: 2.5.5
+  dio: 5.9.2
+  llm_llamacpp:
+    path: third_party/llm_llamacpp
+  battery_plus: 6.2.3
+  connectivity_plus: 6.1.5
+  share_plus: 10.1.4
+  intl: 0.20.2
+
+  characters: ^1.3.0
+  crypto: ^3.0.6
+  file_picker: 11.0.3
+  package_info_plus: 8.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  sqflite_common_ffi: 2.3.7+1
+  analyzer: ^9.0.0
+  yaml: 3.1.3
+  logging: 1.3.0
+
+hooks:
+  user_defines:
+    llm_llamacpp:
+      # The production build stays CPU-only. Set this to true only for the
+      # separately gated experimental build on a host with SPIRV-Headers.
+      enable_vulkan: false
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icons/
+    - assets/brand/
+    - assets/store_screenshots/

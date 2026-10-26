@@ -1,0 +1,6 @@
+# Keep maintained POSIX launchers readable by sh after Windows checkouts.
+# Executable permissions are stored separately in the Git index.
+tool/*.sh text eol=lf
+/android/gradlew text eol=lf
+/android/gradlew.bat text eol=crlf
+/android/gradle/wrapper/gradle-wrapper.jar binary

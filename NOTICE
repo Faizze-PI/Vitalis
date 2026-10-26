@@ -1,0 +1,13 @@
+VITALIS
+Copyright 2026 Faizze-PI and VITALIS contributors
+
+Original VITALIS application code is licensed under the Apache License,
+Version 2.0. This notice does not replace licences applying to third-party code.
+
+The modified vendored llm_llamacpp package retains its MIT licence and notices
+in third_party/llm_llamacpp/LICENSE. Its notices identify Brynje Nordli,
+VITALIS contributors, the ggml authors, and Niels Lohmann.
+
+Flutter, Dart packages, native components and downloaded models retain their
+respective licences. Model weights and production signing material are not
+included in this source distribution.

@@ -1,0 +1,8 @@
+{
+  "tag": "b10727",
+  "commit": "ab0b3bd3c846839e9014c03b071f0f550a57ca84",
+  "archiveUrl": "https://github.com/ggml-org/llama.cpp/archive/ab0b3bd3c846839e9014c03b071f0f550a57ca84.tar.gz",
+  "archiveSha256": "2052fd8db75d0bf14aea72ab86ad8be503a87df1e55aa1c256f79ce9cbf265e5",
+  "androidNdk": "28.2.13676358",
+  "androidApi": 28
+}

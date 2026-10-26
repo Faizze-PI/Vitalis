@@ -1,0 +1,27 @@
+cmake_minimum_required(VERSION 3.20)
+project(vitalis_cancel_lifetime LANGUAGES CXX)
+if(NOT EXISTS "${VITALIS_LLAMA_SOURCE}/include/llama.h")
+  message(FATAL_ERROR "Provide the verified locked llama.cpp source directory")
+endif()
+option(VITALIS_CANCEL_REFS "Test receiver reference ownership" ON)
+add_executable(cancel_lifetime cancel_lifetime.cpp ../vitalis_runtime_bridge.cpp)
+target_include_directories(cancel_lifetime PRIVATE
+  "${VITALIS_LLAMA_SOURCE}/include" "${VITALIS_LLAMA_SOURCE}/ggml/include")
+target_compile_features(cancel_lifetime PRIVATE cxx_std_17)
+target_compile_definitions(cancel_lifetime PRIVATE
+  VITALIS_CANCEL_REFS=$<BOOL:${VITALIS_CANCEL_REFS}>)
+if(MSVC)
+  target_compile_options(cancel_lifetime PRIVATE /fsanitize=address /Zi)
+  target_link_options(cancel_lifetime PRIVATE /INCREMENTAL:NO /DEBUG)
+else()
+  target_compile_options(cancel_lifetime PRIVATE -fsanitize=address -fno-omit-frame-pointer -g)
+  target_link_options(cancel_lifetime PRIVATE -fsanitize=address)
+endif()
+enable_testing()
+add_test(NAME cancellation_lifetime COMMAND cancel_lifetime)
+
+add_executable(allocation_failure allocation_failure.cpp ../vitalis_runtime_bridge.cpp)
+target_include_directories(allocation_failure PRIVATE
+  "${VITALIS_LLAMA_SOURCE}/include" "${VITALIS_LLAMA_SOURCE}/ggml/include")
+target_compile_features(allocation_failure PRIVATE cxx_std_17)
+add_test(NAME cancellation_allocation_failure COMMAND allocation_failure)

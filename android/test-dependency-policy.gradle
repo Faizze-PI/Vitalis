@@ -1,0 +1,26 @@
+// OC-213: Shared Android test dependency selection, including Flutter plugins.
+def policy = new groovy.json.JsonSlurper().parse(rootProject.ext.vitalisToolchainPolicy)
+// HC-061: Only these test coordinates are pinned; unrelated dependencies retain their graph.
+def versions = [
+    'androidx.test:runner': policy.androidTestRunner,
+    'androidx.test.ext:junit': policy.androidTestJunit,
+    'androidx.test:rules': policy.androidTestRules,
+    'androidx.test.espresso:espresso-core': policy.androidTestEspresso
+]
+versions.each { coordinate, version ->
+    if (!(version instanceof String) || !(version ==~ /\d+\.\d+\.\d+/)) {
+        throw new GradleException("Invalid immutable Android test dependency policy: $coordinate")
+    }
+}
+rootProject.ext.vitalisAndroidTestVersions = versions
+allprojects {
+    configurations.configureEach {
+        resolutionStrategy.eachDependency { details ->
+            def version = versions[details.requested.group + ':' + details.requested.name]
+            if (version != null) {
+                details.useVersion(version)
+                details.because('VITALIS immutable Android test toolchain policy OC-213')
+            }
+        }
+    }
+}

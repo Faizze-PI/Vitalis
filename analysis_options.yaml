@@ -1,0 +1,10 @@
+analyzer:
+  errors:
+    missing_return: error
+    dead_code: warning
+
+linter:
+  rules:
+    prefer_const_constructors: true
+    prefer_const_declarations: true
+    avoid_print: false

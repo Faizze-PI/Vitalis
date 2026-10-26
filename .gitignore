@@ -1,0 +1,59 @@
+# Vitalis project .gitignore
+
+# Android Machine-Local Properties & Gradle Cache
+android/local.properties
+.gradle/
+android/.gradle/
+android/gradle/windows-selector-patch/classes/
+
+# Release keystore and credentials
+android/key.properties
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+.env
+.env.*
+secrets.*
+credentials.*
+signing.*
+
+# Model files
+*.gguf
+
+# Flutter & Build Outputs
+.dart_tool/
+.native-build/
+.packages
+build/
+build/debug-info/
+coverage/
+.gate-cache/
+.flutter-plugins
+.flutter-plugins-dependencies
+/android/.kotlin/
+flutter-prototype-apk/
+
+# Flutter-generated platform stubs for the vendored Native Assets package.
+third_party/llm_llamacpp/android/
+third_party/llm_llamacpp/windows/flutter/
+
+# IDE & Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+*.bak
+*.tmp
+
+# Logs
+*.log
+
+# OS Metadata
+.DS_Store
+Thumbs.db
+
+# Public source preview: copy the inactive CI example locally for policy checks.
+/.github/workflows/ci.yml
