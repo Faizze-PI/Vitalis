@@ -15,7 +15,7 @@ void _registerPreferenceRecoveryCases() {
       },
       clock: () => DateTime(2026),
     );
-    await _pump(tester, ready: true, logging: logger);
+    await _pump(tester, appSettings: true, ready: true, logging: logger);
     final finder = find.widgetWithText(SwitchListTile, AppStrings.privacyMode);
     final action = tester.widget<SwitchListTile>(finder).onChanged!;
     action(false);
@@ -43,7 +43,7 @@ void _registerPreferenceRecoveryCases() {
       },
       clock: () => DateTime(2026),
     );
-    await _pump(tester, ready: true, logging: logger);
+    await _pump(tester, appSettings: true, ready: true, logging: logger);
     final finder = find.widgetWithText(SwitchListTile, AppStrings.privacyMode);
     tester.widget<SwitchListTile>(finder).onChanged!(false);
     await tester.pumpAndSettle();
@@ -70,7 +70,7 @@ void _registerPreferenceRecoveryCases() {
       },
       clock: () => DateTime(2026),
     );
-    await _pump(tester, ready: true, logging: logger);
+    await _pump(tester, appSettings: true, ready: true, logging: logger);
     final action = tester
         .widget<SwitchListTile>(
           find.widgetWithText(SwitchListTile, AppStrings.privacyMode),
@@ -99,7 +99,7 @@ void _registerPreferenceRecoveryCases() {
             throw StateError('/private/preferences token=secret'),
         clock: () => DateTime(2026),
       );
-      await _pump(tester, ready: true, logging: logger);
+      await _pump(tester, appSettings: true, ready: true, logging: logger);
       final toggle = tester
           .widget<SwitchListTile>(
             find.widgetWithText(SwitchListTile, AppStrings.privacyMode),
@@ -128,7 +128,7 @@ void _registerPreferenceRecoveryCases() {
   testWidgets(
     'read-only Settings disables persistent preferences and log deletion',
     (tester) async {
-      await _pump(tester, ready: false);
+      await _pump(tester, appSettings: true, ready: false);
       for (final label in [AppStrings.darkMode, AppStrings.privacyMode]) {
         expect(
           tester
@@ -155,7 +155,7 @@ void _registerPreferenceRecoveryCases() {
   ) async {
     final appearance = _ThemeAction()
       ..failure = StateError('/private/preferences token=secret');
-    await _pump(tester, ready: true, appearance: appearance);
+    await _pump(tester, appSettings: true, ready: true, appearance: appearance);
     final action = tester
         .widget<SwitchListTile>(
           find.widgetWithText(SwitchListTile, AppStrings.darkMode),
@@ -179,6 +179,7 @@ void _registerPreferenceRecoveryCases() {
     final appearance = _ThemeAction();
     await _pump(
       tester,
+      appSettings: true,
       ready: true,
       appearance: appearance,
       access: StartupAccessGuard(() => _dialogCapabilities(ready)),
@@ -197,7 +198,7 @@ void _registerPreferenceRecoveryCases() {
 
   testWidgets('retired Settings cannot submit a theme change', (tester) async {
     final appearance = _ThemeAction();
-    await _pump(tester, ready: true, appearance: appearance);
+    await _pump(tester, appSettings: true, ready: true, appearance: appearance);
     final action = tester
         .widget<SwitchListTile>(
           find.widgetWithText(SwitchListTile, AppStrings.darkMode),

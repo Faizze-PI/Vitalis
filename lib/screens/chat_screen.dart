@@ -7,6 +7,7 @@ import '../providers/chat_provider.dart';
 import '../providers/generation_provider.dart';
 import '../providers/health_provider.dart';
 import '../widgets/chat_input_field.dart';
+import '../widgets/conversation_status_bar.dart';
 import '../widgets/attached_notes_bar.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/response_frame_observer.dart';
@@ -38,10 +39,52 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final ScrollController _scrollController = ScrollController();
-  bool _healthBarExpanded = false;
   bool _disposed = false;
   ChatProvider? _chatProvider;
   GenerationProvider? _generationProvider;
+  String? _modelLabelId;
+  Future<ModelDescriptor?>? _modelLabelLookup;
+
+  Widget _modelLabel(String modelId) {
+    if (_modelLabelId != modelId) {
+      _modelLabelId = modelId;
+      _modelLabelLookup = context.read<ModelRegistryService>().findById(
+        modelId,
+      );
+    }
+    return FutureBuilder<ModelDescriptor?>(
+      key: ValueKey(modelId),
+      future: _modelLabelLookup,
+      builder: (context, snapshot) {
+        final name = snapshot.connectionState != ConnectionState.done
+            ? 'Checking model…'
+            : snapshot.data?.displayName ?? 'Model unavailable';
+        return Tooltip(
+          message: name,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              const SizedBox(width: AppMetrics.spaceXxs),
+              const Icon(
+                Icons.expand_more_rounded,
+                size: AppMetrics.iconSizeSm,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   Widget _observeResponseFrame(
     Widget child,
@@ -161,7 +204,11 @@ class _ChatScreenState extends State<ChatScreen> {
                   } catch (error) {
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Model switch failed: $error')),
+                        const SnackBar(
+                          content: Text(
+                            'Model could not be switched. Please retry.',
+                          ),
+                        ),
                       );
                     }
                   }
@@ -192,39 +239,88 @@ class _ChatScreenState extends State<ChatScreen> {
     );
 
     if (!mounted || action == null) return;
+    await _runMenuAction(action);
+  }
 
+  Future<void> _showContextActions() async {
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.note_add_outlined),
+              title: const Text(AppStrings.attachNote),
+              onTap: () => Navigator.pop(sheet, 'attach_note'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: const Text(AppStrings.selectPersona),
+              onTap: () => Navigator.pop(sheet, 'select_persona'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (mounted && action != null) await _runMenuAction(action);
+  }
+
+  Future<void> _runMenuAction(String action) async {
+    if (!mounted) return;
     final chatProvider = context.read<ChatProvider>();
 
-    switch (action) {
-      case 'chat_history':
-        await chatProvider.loadChats();
-        if (!mounted) return;
-        await showModalBottomSheet(
-          context: context,
-          isScrollControlled: true,
-          builder: (ctx) => const ChatHistoryModal(),
+    try {
+      switch (action) {
+        case 'remove_persona':
+          if (!await chatProvider.removePersona())
+            throw StateError('Persona change was not saved');
+        case 'rename':
+          await _renameChat(chatProvider);
+        case 'model_library':
+          await Navigator.pushNamed(context, AppRoutes.modelLibrary);
+        case 'chat_history':
+          await chatProvider.loadChats();
+          if (!mounted) return;
+          await showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            builder: (ctx) => const ChatHistoryModal(),
+          );
+        case 'select_persona':
+          await showModalBottomSheet(
+            context: context,
+            builder: (ctx) => const PersonaSelectionModal(),
+          );
+        case 'attach_note':
+          final note = await showModalBottomSheet<Note>(
+            context: context,
+            builder: (ctx) => const NotesListSelectionModal(),
+          );
+          if (note != null && mounted) {
+            await chatProvider.attachNote(note);
+          }
+        case 'settings':
+          await Navigator.pushNamed(context, AppRoutes.chatSettings);
+        case 'export':
+          await _exportConversation(chatProvider);
+        case 'debug':
+          if (await canNavigateToDebug(context)) {
+            await Navigator.pushNamed(context, AppRoutes.debug);
+          }
+      }
+    } catch (error) {
+      AppLogger.instance.warning(
+        'Conversation action failed (${error.runtimeType})',
+      );
+      if (mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'That action is unavailable right now. Please retry.',
+            ),
+          ),
         );
-      case 'select_persona':
-        await showModalBottomSheet(
-          context: context,
-          builder: (ctx) => const PersonaSelectionModal(),
-        );
-      case 'attach_note':
-        final note = await showModalBottomSheet<Note>(
-          context: context,
-          builder: (ctx) => const NotesListSelectionModal(),
-        );
-        if (note != null && mounted) {
-          chatProvider.attachNote(note);
-        }
-      case 'settings':
-        await Navigator.pushNamed(context, AppRoutes.settings);
-      case 'export':
-        await _exportConversation(chatProvider);
-      case 'debug':
-        if (await canNavigateToDebug(context)) {
-          await Navigator.pushNamed(context, AppRoutes.debug);
-        }
     }
   }
 
@@ -321,71 +417,76 @@ class _ChatScreenState extends State<ChatScreen> {
 
           final isGenerating = status == ChatStatus.generating;
           final healthProvider = context.watch<HealthProvider>();
-          final healthColor = _healthBarExpanded
-              ? (healthProvider.isSafeForHeavy
-                    ? AppColors.healthGreen
-                    : AppColors.healthOrange)
-              : Colors.transparent;
 
           return Scaffold(
             appBar: AppBar(
-              backgroundColor: isGenerating
-                  ? Theme.of(
-                      context,
-                    ).colorScheme.primaryContainer.withValues(alpha: 0.3)
-                  : null,
-              title: Semantics(
-                label:
-                    '${AppStrings.renameChat}: ${chatProvider.currentChat?.title ?? 'Chat'}',
-                button: true,
-                child: GestureDetector(
-                  onTap: canInfer ? () => _renameChat(chatProvider) : null,
-                  child: Text(chatProvider.currentChat?.title ?? 'Chat'),
+              toolbarHeight: AppMetrics.spaceXxl + AppMetrics.spaceLg,
+              leading: IconButton(
+                tooltip: Navigator.canPop(context)
+                    ? 'Back to Chats'
+                    : AppStrings.chatHistory,
+                icon: Icon(
+                  Navigator.canPop(context)
+                      ? Icons.arrow_back
+                      : Icons.menu_rounded,
                 ),
+                onPressed: () {
+                  if (Navigator.canPop(context)) {
+                    Navigator.maybePop(context);
+                  } else {
+                    _runMenuAction('chat_history');
+                  }
+                },
               ),
-              actions: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Semantics(
-                    label: 'Change model for this chat',
-                    button: true,
-                    child: ActionChip(
-                      avatar: const Icon(Icons.memory, size: 16),
-                      label: const Text('Model'),
-                      onPressed: canInfer
-                          ? () => _chooseModel(chatProvider)
-                          : null,
+              titleSpacing: 0,
+              title: Semantics(
+                label: 'Change model for this chat',
+                button: true,
+                enabled: canInfer,
+                child: InkWell(
+                  onTap: canInfer ? () => _chooseModel(chatProvider) : null,
+                  borderRadius: BorderRadius.circular(AppMetrics.radiusSm),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: AppMetrics.spaceXs,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          chatProvider.currentChat?.title ?? 'Chat',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: AppMetrics.spaceXxs),
+                        _modelLabel(chatProvider.settings.modelId),
+                      ],
                     ),
                   ),
                 ),
-                Semantics(
-                  label: AppStrings.newChat,
-                  button: true,
-                  child: IconButton(
-                    icon: const Icon(Icons.add),
-                    onPressed: canInfer
-                        ? () async {
-                            final title = await showDialog<String>(
-                              context: context,
-                              builder: (_) => const ChatNameModal(),
+              ),
+              actions: [
+                IconButton(
+                  tooltip: AppStrings.newChat,
+                  icon: const Icon(Icons.add_rounded),
+                  onPressed: canInfer
+                      ? () async {
+                          final title = await showDialog<String>(
+                            context: context,
+                            builder: (_) => const ChatNameModal(),
+                          );
+                          if (title != null && mounted)
+                            await context.read<ChatProvider>().createChat(
+                              title: title,
                             );
-                            if (title != null && mounted) {
-                              await context.read<ChatProvider>().createChat(
-                                title: title,
-                              );
-                            }
-                          }
-                        : null,
-                    tooltip: AppStrings.newChat,
-                  ),
+                        }
+                      : null,
                 ),
-                Semantics(
-                  label: AppStrings.openMenu,
-                  button: true,
-                  child: IconButton(
-                    icon: const Icon(Icons.menu),
-                    onPressed: _showMenu,
-                  ),
+                IconButton(
+                  tooltip: AppStrings.openMenu,
+                  icon: const Icon(Icons.more_horiz_rounded),
+                  onPressed: _showMenu,
                 ),
               ],
             ),
@@ -404,156 +505,13 @@ class _ChatScreenState extends State<ChatScreen> {
               },
               child: Column(
                 children: [
-                  // Health Bar (Phase 4)
-                  Semantics(
-                    label: AppStrings.healthStatus,
-                    button: true,
-                    child: GestureDetector(
-                      onTap: () => setState(
-                        () => _healthBarExpanded = !_healthBarExpanded,
-                      ),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        curve: Curves.easeInOut,
-                        width: double.infinity,
-                        padding: EdgeInsets.symmetric(
-                          horizontal: AppMetrics.spaceMd,
-                          vertical: _healthBarExpanded
-                              ? AppMetrics.spaceSm
-                              : AppMetrics.spaceXs,
-                        ),
-                        decoration: BoxDecoration(
-                          color: healthColor.withValues(alpha: 0.1),
-                          border: Border(
-                            bottom: BorderSide(
-                              color: healthColor.withValues(alpha: 0.3),
-                              width: 1,
-                            ),
-                          ),
-                        ),
-                        child: AnimatedCrossFade(
-                          firstChild: Row(
-                            children: [
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: healthProvider.isSafeForHeavy
-                                      ? AppColors.healthGreen
-                                      : AppColors.healthOrange,
-                                ),
-                              ),
-                              const SizedBox(width: AppMetrics.spaceXs),
-                              Text(
-                                healthProvider.isSafeForHeavy
-                                    ? AppStrings.systemNormal
-                                    : AppStrings.systemWarm,
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                              const Spacer(),
-                              Icon(
-                                Icons.expand_more,
-                                size: AppMetrics.iconSizeSm,
-                                color: Theme.of(
-                                  context,
-                                ).textTheme.bodySmall?.color,
-                              ),
-                            ],
-                          ),
-                          secondChild: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Container(
-                                    width: 8,
-                                    height: 8,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: healthProvider.isSafeForHeavy
-                                          ? AppColors.healthGreen
-                                          : AppColors.healthOrange,
-                                    ),
-                                  ),
-                                  const SizedBox(width: AppMetrics.spaceXs),
-                                  Semantics(
-                                    label: AppStrings.systemNormal,
-                                    child: Text(
-                                      healthProvider.isSafeForHeavy
-                                          ? AppStrings.systemNormal
-                                          : AppStrings.systemWarm,
-                                      style: Theme.of(
-                                        context,
-                                      ).textTheme.bodySmall,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  Icon(
-                                    Icons.expand_less,
-                                    size: AppMetrics.iconSizeSm,
-                                    color: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall?.color,
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: AppMetrics.spaceXxs),
-                              Row(
-                                children: [
-                                  () {
-                                    final d = healthProvider.rssMb <= 0
-                                        ? 'N/A'
-                                        : '$healthProvider.rssMb MB';
-                                    return Semantics(
-                                      label: 'RAM: $d',
-                                      child: _healthChip('RSS: $d', context),
-                                    );
-                                  }(),
-                                  const SizedBox(width: AppMetrics.spaceXs),
-                                  Semantics(
-                                    label:
-                                        '${generationProvider.lastTps.toStringAsFixed(1)} tokens per second',
-                                    child: _healthChip(
-                                      'TPS: ${generationProvider.lastTps.toStringAsFixed(1)}',
-                                      context,
-                                    ),
-                                  ),
-                                  const SizedBox(width: AppMetrics.spaceXs),
-                                  Semantics(
-                                    label:
-                                        'Battery ${healthProvider.batteryLevel}%',
-                                    child: _healthChip(
-                                      'Bat: ${healthProvider.batteryLevel}%',
-                                      context,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: AppMetrics.spaceXxs),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(2),
-                                child: LinearProgressIndicator(
-                                  value: (healthProvider.batteryLevel / 100)
-                                      .clamp(0.0, 1.0),
-                                  minHeight: 3,
-                                  backgroundColor: Colors.grey.shade300,
-                                  color: healthProvider.batteryLevel > 20
-                                      ? AppColors.healthGreen
-                                      : healthProvider.batteryLevel > 10
-                                      ? AppColors.healthOrange
-                                      : AppColors.healthRed,
-                                ),
-                              ),
-                            ],
-                          ),
-                          crossFadeState: _healthBarExpanded
-                              ? CrossFadeState.showSecond
-                              : CrossFadeState.showFirst,
-                          duration: const Duration(milliseconds: 300),
-                        ),
-                      ),
-                    ),
+                  ConversationStatusBar(
+                    safe: healthProvider.isSafeForHeavy,
+                    rssMb: healthProvider.rssMb,
+                    battery: healthProvider.batteryKnown
+                        ? healthProvider.batteryLevel
+                        : null,
+                    lastTps: generationProvider.lastTps,
                   ),
 
                   // Error banner
@@ -677,25 +635,34 @@ class _ChatScreenState extends State<ChatScreen> {
                                   children: [
                                     Icon(
                                       Icons.chat_bubble_outline,
-                                      size: 64,
-                                      color: Colors.grey.shade400,
+                                      size: AppMetrics.spaceXl,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                     ),
                                     const SizedBox(height: AppMetrics.spaceMd),
                                     Text(
-                                      AppStrings.noChatsYet,
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.grey.shade600,
-                                      ),
+                                      canInfer
+                                          ? 'Start a conversation'
+                                          : 'Your conversation is saved',
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.titleLarge,
                                     ),
                                     const SizedBox(height: AppMetrics.spaceXs),
                                     Text(
-                                      AppStrings.startAConversation,
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.grey.shade500,
-                                      ),
+                                      canInfer
+                                          ? 'Ask a question, or add a note for context.'
+                                          : 'Choose or recover a model to continue.',
+                                      textAlign: TextAlign.center,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant,
+                                          ),
                                     ),
                                   ],
                                 ),
@@ -745,13 +712,7 @@ class _ChatScreenState extends State<ChatScreen> {
                                       ),
                                       child: Row(
                                         children: [
-                                          CircleAvatar(
-                                            radius: AppMetrics.avatarRadius,
-                                            child: Icon(
-                                              Icons.smart_toy,
-                                              size: AppMetrics.iconSizeMd,
-                                            ),
-                                          ),
+                                          Text('Preparing response'),
                                           SizedBox(width: AppMetrics.spaceXs),
                                           AnimatedDots(),
                                         ],
@@ -825,9 +786,13 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   ),
 
-                  if (chatProvider.attachedNotes.isNotEmpty)
+                  if (chatProvider.attachedNotes.isNotEmpty ||
+                      chatProvider.currentPersona != null)
                     AttachedNotesBar(
                       notes: chatProvider.attachedNotes,
+                      persona: chatProvider.currentPersona,
+                      enabled: canInfer && !isSending,
+                      onRemovePersona: () => _runMenuAction('remove_persona'),
                       onRemove: (note) async {
                         try {
                           await chatProvider.clearAttachedNote(note);
@@ -870,8 +835,11 @@ class _ChatScreenState extends State<ChatScreen> {
                     )
                   else
                     ChatInputField(
+                      key: ValueKey(chatProvider.currentChat?.id),
+                      onAttach: _showContextActions,
                       onSend: (text) async {
-                        await chatProvider.sendMessage(text);
+                        final saved = await chatProvider.submitMessage(text);
+                        if (!saved) throw StateError('Message was not saved');
                         _scrollToBottom();
                       },
                       onStop: chatProvider.stopSending,
@@ -910,16 +878,5 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       );
     }
-  }
-
-  Widget _healthChip(String text, BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(text, style: const TextStyle(fontSize: 10)),
-    );
   }
 }

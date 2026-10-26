@@ -336,7 +336,15 @@ class _DelayedCompletionDatabase implements DatabaseHelper {
   int _nextChat = 0;
   int? savedChatId;
   @override
-  Future<int> insertChat(Map<String, dynamic> values) async => ++_nextChat;
+  Future<int> insertChatWithModel(
+    Map<String, dynamic> values,
+    String modelId, {
+    void Function()? beforeCommit,
+  }) async {
+    beforeCommit?.call();
+    return ++_nextChat;
+  }
+
   @override
   Future<int> insertMessage(Map<String, dynamic> values) async {
     entered.complete();

@@ -1,6 +1,16 @@
 # Changelog
 
-## Unreleased — Android development preview
+## 1.0.1 — 2026-10-26 — Android preview
+
+- New VITALIS symbol and adaptive launcher icon.
+- Conversation-first design, Chats home and Saved navigation.
+- Browse/Installed/Downloads model sections with a separate filter sheet.
+- Separate app and chat settings; native-compatible numeric generation controls.
+- Retained unsaved drafts, chat-owned asynchronous prompt results and guarded editor admission.
+- Profile-mode Android APK; formal qualification and coverage remain incomplete.
+- Windows preview is the next delivery target; Linux remains deferred.
+
+## 1.0.0 — Android development preview
 
 - Persistent runtime ownership, acknowledged cancellation and recovery handling.
 - Local GGUF registry and public Hugging Face model search/download flows.

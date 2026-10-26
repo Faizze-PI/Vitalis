@@ -1,117 +1,64 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../../providers/chat_provider.dart';
-import '../../providers/theme_provider.dart';
-import '../../utils/debug_state.dart';
 import '../../constants/app_strings.dart';
+import '../../utils/debug_state.dart';
+import '../../widgets/startup_mutation_access.dart';
 
 class HamburgerMenu extends StatelessWidget {
   const HamburgerMenu({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final chatProvider = context.read<ChatProvider>();
-    final themeProvider = context.watch<ThemeProvider>();
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Semantics(
-              header: true,
-              child: const Text(
+  Widget build(BuildContext context) => SafeArea(
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Semantics(
+            header: true,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 16, bottom: 8),
+              child: Text(
                 AppStrings.chatOptions,
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
-            const SizedBox(height: 16),
-            Semantics(
-              label: AppStrings.chatHistory,
-              button: true,
-              child: ListTile(
-                leading: const Icon(Icons.history),
-                title: const Text(AppStrings.chatHistory),
-                onTap: () => Navigator.pop(context, 'chat_history'),
-              ),
+          ),
+          StartupMutationAccess(
+            builder: (context, enabled) => ListTile(
+              leading: const Icon(Icons.drive_file_rename_outline),
+              title: const Text('Rename chat'),
+              enabled: enabled,
+              onTap: enabled ? () => Navigator.pop(context, 'rename') : null,
             ),
-            Semantics(
-              label: AppStrings.selectPersona,
-              button: true,
-              child: ListTile(
-                leading: const Icon(Icons.person),
-                title: Text(
-                  chatProvider.currentPersona?.name ?? AppStrings.selectPersona,
-                ),
-                onTap: () => Navigator.pop(context, 'select_persona'),
-              ),
-            ),
-            Semantics(
-              label: AppStrings.attachNote,
-              button: true,
-              child: ListTile(
-                leading: const Icon(Icons.note),
-                title: const Text(AppStrings.attachNote),
-                onTap: () => Navigator.pop(context, 'attach_note'),
-              ),
-            ),
-            Semantics(
-              label: AppStrings.settingsTitle,
-              button: true,
-              child: ListTile(
-                leading: const Icon(Icons.settings),
-                title: const Text(AppStrings.settingsTitle),
-                onTap: () => Navigator.pop(context, 'settings'),
-              ),
-            ),
-            const Divider(),
-            Semantics(
-              label: AppStrings.darkModeToggle,
-              child: SwitchListTile(
-                secondary: const Icon(Icons.dark_mode),
-                title: const Text(AppStrings.darkModeToggle),
-                value: themeProvider.isDark,
-                onChanged: (_) => themeProvider.toggle(),
-              ),
-            ),
-            Semantics(
-              label: AppStrings.exportConversation,
-              button: true,
-              child: ListTile(
-                leading: const Icon(Icons.copy),
-                title: const Text(AppStrings.exportConversation),
-                onTap: () => Navigator.pop(context, 'export'),
-              ),
-            ),
-            _debugTile(context),
-          ],
-        ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.memory_outlined),
+            title: const Text('Model Library'),
+            onTap: () => Navigator.pop(context, 'model_library'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.tune_rounded),
+            title: const Text('Chat settings'),
+            onTap: () => Navigator.pop(context, 'settings'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.ios_share_rounded),
+            title: const Text(AppStrings.exportConversation),
+            onTap: () => Navigator.pop(context, 'export'),
+          ),
+          FutureBuilder<bool>(
+            future: DebugState.instance.isEnabled(),
+            builder: (context, snapshot) => snapshot.data == true
+                ? ListTile(
+                    leading: const Icon(Icons.developer_mode),
+                    title: const Text(AppStrings.debugMenu),
+                    onTap: () => Navigator.pop(context, 'debug'),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
       ),
-    );
-  }
-
-  Widget _debugTile(BuildContext context) {
-    return FutureBuilder<bool>(
-      future: DebugState.instance.isEnabled(),
-      builder: (context, snapshot) {
-        if (snapshot.data != true) return const SizedBox.shrink();
-        return Column(
-          children: [
-            const Divider(),
-            Semantics(
-              label: AppStrings.debugMenu,
-              button: true,
-              child: ListTile(
-                leading: const Icon(Icons.developer_mode),
-                title: const Text(AppStrings.debugMenu),
-                onTap: () => Navigator.pop(context, 'debug'),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
+    ),
+  );
 }

@@ -1,14 +1,13 @@
-# Android 1.0.0 preview build
+# Android 1.0.1 preview provenance
 
-- APK: `VITALIS-1.0.0-arm64-v8a.apk`
-- Package: `com.vitalis.vitalis_app`
-- App version: `1.0.0` (build 1)
-- Build: debug, arm64-v8a, Android API 28 minimum
-- SHA-256: `a7e4eb3dffda849c2a147fe9224189b3062c0a8d502e39bf27c5340b9b4fd1b4`
-- Certificate SHA-256: `071d5608eed3d00d36a573ab728409a040c85eaa3ec7bb972a0e9b7164420b1d`
+Private development source checkpoint: `7285c5f`. This repository contains a source-only export; private phone evidence and development history are excluded.
 
-The APK was built from private development checkpoint `f9e9b7fa88098c56d27c8044fbd512fe044a7336`. Public snapshot `151e9ca5157b1ed313eb6df82e73db6cfba1f61f` contains the same application source with publication and licence documentation. Subsequent public changes update documentation only. The APK was not rebuilt from those documentation commits.
+Flutter 3.44.7 / Dart 3.12.2; JDK 21.0.9; NDK 28.2.13676358. Android arm64, minimum API 28, target API 35. Profile AOT build, debug-signed testing preview.
 
-Renaming the download did not change its contents, signing certificate or hash. No model weights or signing keys are included.
+APK: `VITALIS-1.0.1-arm64-v8a.apk`
 
-See [test status and known issues](STATUS.md) for qualification limits. GitHub's Latest label identifies the current download; it does not establish production readiness.
+SHA-256: `2185644d0af5370cd15d0535a9650274df273577048b9c888152c9b6f777c619`
+
+Signing certificate SHA-256: `071d5608eed3d00d36a573ab728409a040c85eaa3ec7bb972a0e9b7164420b1d`.
+
+Model weights download separately. No production signing material is included.

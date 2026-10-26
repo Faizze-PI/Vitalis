@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:llm_llamacpp/llm_llamacpp.dart';
 import 'providers/theme_provider.dart';
+import 'theme/app_theme.dart';
 import 'services/hardware_sentinel_service.dart';
 import 'services/legacy_model_preference_migration.dart';
 import 'services/startup_coordinator.dart';
@@ -112,28 +113,8 @@ class VitalisApp extends StatelessWidget {
           return MaterialApp(
             title: 'Vitalis',
             debugShowCheckedModeBanner: false,
-            theme: ThemeData(
-              colorSchemeSeed: const Color(0xFF6C63FF),
-              useMaterial3: true,
-              brightness: Brightness.light,
-              pageTransitionsTheme: const PageTransitionsTheme(
-                builders: {
-                  TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
-                  TargetPlatform.iOS: FadeUpwardsPageTransitionsBuilder(),
-                },
-              ),
-            ),
-            darkTheme: ThemeData(
-              colorSchemeSeed: const Color(0xFF6C63FF),
-              useMaterial3: true,
-              brightness: Brightness.dark,
-              pageTransitionsTheme: const PageTransitionsTheme(
-                builders: {
-                  TargetPlatform.android: FadeUpwardsPageTransitionsBuilder(),
-                  TargetPlatform.iOS: FadeUpwardsPageTransitionsBuilder(),
-                },
-              ),
-            ),
+            theme: AppTheme.light,
+            darkTheme: AppTheme.dark,
             themeMode: themeProvider.mode,
             initialRoute: AppRoutes.setup,
             onGenerateRoute: onGenerateRoute,

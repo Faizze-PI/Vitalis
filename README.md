@@ -1,8 +1,10 @@
 # VITALIS
 
+<img src="docs/branding/app-icon.png" width="96" alt="VITALIS logo">
+
 Local AI chat for Android. Download GGUF models from Hugging Face or import your own, then chat on your phone.
 
-[**Download APK**](https://github.com/Faizze-PI/Vitalis/releases/latest/download/VITALIS-1.0.0-arm64-v8a.apk) · [Releases](https://github.com/Faizze-PI/Vitalis/releases) · [Report a bug](https://github.com/Faizze-PI/Vitalis/issues)
+[**Download APK**](https://github.com/Faizze-PI/Vitalis/releases/latest/download/VITALIS-1.0.1-arm64-v8a.apk) · [Releases](https://github.com/Faizze-PI/Vitalis/releases) · [Report a bug](https://github.com/Faizze-PI/Vitalis/issues)
 
 Android 9+ · arm64 · Apache-2.0
 
@@ -33,7 +35,7 @@ Inference runs locally. Model search and downloads connect to Hugging Face and i
 
 ## Development
 
-Built with Flutter and Provider, with llama.cpp through Dart Native Assets. Android is the current target; Windows and Linux are deferred.
+Built with Flutter and Provider, with llama.cpp through Dart Native Assets. Android is available as a preview. A Windows preview is in development; Linux is deferred.
 
 - [Build and test instructions](docs/public/BUILDING.md)
 - [Known issues and test status](docs/public/STATUS.md)

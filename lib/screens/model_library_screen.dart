@@ -24,7 +24,7 @@ class ModelLibraryScreen extends StatefulWidget {
 class _ModelLibraryScreenState extends State<ModelLibraryScreen>
     with SingleTickerProviderStateMixin {
   final _searchController = TextEditingController();
-  final _publisherController = TextEditingController();
+  String _publisher = '';
   Timer? _debounce;
   HubSort _sort = HubSort.downloads;
   _ModelSizeFilter _sizeFilter = _ModelSizeFilter.any;
@@ -34,7 +34,7 @@ class _ModelLibraryScreenState extends State<ModelLibraryScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 4, vsync: this)..addListener(_onTabChanged);
+    _tabs = TabController(length: 3, vsync: this)..addListener(_onTabChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) unawaited(_initializeLibrary());
     });
@@ -42,7 +42,7 @@ class _ModelLibraryScreenState extends State<ModelLibraryScreen>
 
   void _onTabChanged() {
     if (_tabs.index == _lastTab) return;
-    _lastTab = _tabs.index;
+    setState(() => _lastTab = _tabs.index);
     FocusManager.instance.primaryFocus?.unfocus();
   }
 
@@ -67,7 +67,6 @@ class _ModelLibraryScreenState extends State<ModelLibraryScreen>
     _tabs.removeListener(_onTabChanged);
     _tabs.dispose();
     _searchController.dispose();
-    _publisherController.dispose();
     super.dispose();
   }
 
@@ -75,48 +74,62 @@ class _ModelLibraryScreenState extends State<ModelLibraryScreen>
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: const Text('Model Library'),
-      bottom: TabBar(
-        controller: _tabs,
-        isScrollable: true,
-        tabs: const [
-          Tab(text: 'Recommended'),
-          Tab(text: 'Hugging Face'),
-          Tab(text: 'Installed'),
-          Tab(text: 'Downloads'),
-        ],
+      bottom: PreferredSize(
+        preferredSize: Size.fromHeight(
+          MediaQuery.textScalerOf(context)
+              .scale(kMinInteractiveDimension)
+              .clamp(kToolbarHeight, double.infinity),
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final style = Theme.of(context).textTheme.titleSmall!;
+            const labels = ['Browse', 'Installed', 'Downloads'];
+            final fits = labels.every((label) {
+              final painter = TextPainter(
+                text: TextSpan(text: label, style: style),
+                textDirection: Directionality.of(context),
+                textScaler: MediaQuery.textScalerOf(context),
+              )..layout();
+              final fits =
+                  painter.width + 32 <= constraints.maxWidth / labels.length;
+              painter.dispose();
+              return fits;
+            });
+            if (!fits) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: DropdownButton<int>(
+                  isExpanded: true,
+                  value: _tabs.index,
+                  itemHeight: null,
+                  hint: const Text('Model Library section'),
+                  items: [
+                    for (var index = 0; index < labels.length; index++)
+                      DropdownMenuItem(
+                        value: index,
+                        child: Text(labels[index]),
+                      ),
+                  ],
+                  onChanged: (index) {
+                    if (index != null) _tabs.animateTo(index);
+                  },
+                ),
+              );
+            }
+            return TabBar(
+              controller: _tabs,
+              tabs: [for (final label in labels) Tab(text: label)],
+            );
+          },
+        ),
       ),
     ),
     body: Consumer<ModelLibraryProvider>(
       builder: (context, library, _) => TabBarView(
         controller: _tabs,
-        children: [
-          _recommended(library),
-          _search(library),
-          _installed(library),
-          _downloads(library),
-        ],
+        children: [_search(library), _installed(library), _downloads(library)],
       ),
     ),
-  );
-
-  Widget _recommended(ModelLibraryProvider library) => ListView(
-    padding: const EdgeInsets.all(16),
-    children: [
-      Text(
-        'Best starting point',
-        style: Theme.of(context).textTheme.titleLarge,
-      ),
-      const SizedBox(height: 8),
-      const Text(
-        'Curated for local use. Models run on your device after download.',
-      ),
-      const SizedBox(height: 12),
-      _remoteCard(
-        library,
-        library.bundledRecommendation,
-        fixedVariant: library.bundledVariant,
-      ),
-    ],
   );
 
   Widget _search(ModelLibraryProvider library) => CustomScrollView(
@@ -155,79 +168,20 @@ class _ModelLibraryScreenState extends State<ModelLibraryScreen>
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: TextField(
-                controller: _publisherController,
-                decoration: const InputDecoration(
-                  labelText: 'Publisher filter (optional)',
-                  prefixIcon: Icon(Icons.business),
-                  border: OutlineInputBorder(),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Align(
+                alignment: AlignmentDirectional.centerEnd,
+                child: Tooltip(
+                  message: 'Search filters',
+                  child: TextButton.icon(
+                    onPressed: () => _showFilters(library),
+                    icon: const Icon(Icons.tune),
+                    label: const Text('Filters'),
+                    style: TextButton.styleFrom(
+                      minimumSize: const Size(48, 48),
+                    ),
+                  ),
                 ),
-                textInputAction: TextInputAction.search,
-                onSubmitted: (_) =>
-                    _submitSearch(library, _searchController.text),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<HubSort>(
-                      initialValue: _sort,
-                      decoration: const InputDecoration(labelText: 'Sort'),
-                      items: const [
-                        DropdownMenuItem(
-                          value: HubSort.relevance,
-                          child: Text('Relevance'),
-                        ),
-                        DropdownMenuItem(
-                          value: HubSort.downloads,
-                          child: Text('Popularity'),
-                        ),
-                        DropdownMenuItem(
-                          value: HubSort.recentlyUpdated,
-                          child: Text('Recently updated'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        if (value == null) return;
-                        setState(() => _sort = value);
-                        _runSearch(library, _searchController.text);
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: DropdownButtonFormField<_ModelSizeFilter>(
-                      initialValue: _sizeFilter,
-                      decoration: const InputDecoration(
-                        labelText: 'Model size',
-                      ),
-                      items: const [
-                        DropdownMenuItem(
-                          value: _ModelSizeFilter.any,
-                          child: Text('Any size'),
-                        ),
-                        DropdownMenuItem(
-                          value: _ModelSizeFilter.upTo4B,
-                          child: Text('Up to 4B'),
-                        ),
-                        DropdownMenuItem(
-                          value: _ModelSizeFilter.over4B,
-                          child: Text('Over 4B'),
-                        ),
-                        DropdownMenuItem(
-                          value: _ModelSizeFilter.unknown,
-                          child: Text('Unknown size'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        if (value != null) setState(() => _sizeFilter = value);
-                      },
-                    ),
-                  ),
-                ],
               ),
             ),
             if (library.status == ModelLibraryStatus.offline)
@@ -245,7 +199,32 @@ class _ModelLibraryScreenState extends State<ModelLibraryScreen>
           ],
         ),
       ),
-      if (_filteredResults(library).isEmpty)
+      if (library.status == ModelLibraryStatus.idle && library.results.isEmpty)
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Recommended',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Download a model, then chat offline on your device.',
+                ),
+                _remoteCard(
+                  library,
+                  library.bundledRecommendation,
+                  fixedVariant: library.bundledVariant,
+                ),
+              ],
+            ),
+          ),
+        ),
+      if (_filteredResults(library).isEmpty &&
+          library.status != ModelLibraryStatus.idle)
         const SliverFillRemaining(
           hasScrollBody: false,
           child: Center(child: Text('Search public GGUF models')),
@@ -285,8 +264,33 @@ class _ModelLibraryScreenState extends State<ModelLibraryScreen>
           })
           .toList(growable: false);
 
+  Future<void> _showFilters(ModelLibraryProvider library) async {
+    _debounce?.cancel();
+    FocusManager.instance.primaryFocus?.unfocus();
+    final selection =
+        await showModalBottomSheet<
+          ({String publisher, HubSort sort, _ModelSizeFilter size})
+        >(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          builder: (_) => _SearchFiltersSheet(
+            publisher: _publisher,
+            sort: _sort,
+            size: _sizeFilter,
+          ),
+        );
+    if (!mounted || selection == null) return;
+    setState(() {
+      _publisher = selection.publisher;
+      _sort = selection.sort;
+      _sizeFilter = selection.size;
+    });
+    await _submitSearch(library, _searchController.text);
+  }
+
   Future<void> _runSearch(ModelLibraryProvider library, String query) =>
-      library.search(query, sort: _sort, publisher: _publisherController.text);
+      library.search(query, sort: _sort, publisher: _publisher);
 
   Future<void> _submitSearch(ModelLibraryProvider library, String query) {
     FocusManager.instance.primaryFocus?.unfocus();
@@ -564,7 +568,7 @@ class _ModelLibraryScreenState extends State<ModelLibraryScreen>
         return;
       }
       final pending = library.download(model, chosen);
-      _tabs.animateTo(3);
+      _tabs.animateTo(2);
       final job = await pending;
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -706,7 +710,7 @@ class _ModelLibraryScreenState extends State<ModelLibraryScreen>
     if (action == _InstalledModelAction.repair) {
       try {
         final pending = library.repair(model);
-        _tabs.animateTo(3);
+        _tabs.animateTo(2);
         final job = await pending;
         if (mounted) {
           ScaffoldMessenger.of(
@@ -885,3 +889,114 @@ class _ModelLibraryScreenState extends State<ModelLibraryScreen>
 enum _ModelSizeFilter { any, upTo4B, over4B, unknown }
 
 enum _InstalledModelAction { use, verify, restore, update, repair, uninstall }
+
+class _SearchFiltersSheet extends StatefulWidget {
+  const _SearchFiltersSheet({
+    required this.publisher,
+    required this.sort,
+    required this.size,
+  });
+  final String publisher;
+  final HubSort sort;
+  final _ModelSizeFilter size;
+  @override
+  State<_SearchFiltersSheet> createState() => _SearchFiltersSheetState();
+}
+
+class _SearchFiltersSheetState extends State<_SearchFiltersSheet> {
+  late final _publisher = TextEditingController(text: widget.publisher);
+  late HubSort _sort = widget.sort;
+  late _ModelSizeFilter _size = widget.size;
+  @override
+  void dispose() {
+    _publisher.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SingleChildScrollView(
+    padding: EdgeInsets.fromLTRB(
+      16,
+      16,
+      16,
+      16 + MediaQuery.viewInsetsOf(context).bottom,
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Search filters', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _publisher,
+          decoration: const InputDecoration(
+            labelText: 'Publisher filter (optional)',
+          ),
+        ),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<HubSort>(
+          initialValue: _sort,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'Sort'),
+          items: const [
+            DropdownMenuItem(
+              value: HubSort.relevance,
+              child: Text('Relevance'),
+            ),
+            DropdownMenuItem(
+              value: HubSort.downloads,
+              child: Text('Popularity'),
+            ),
+            DropdownMenuItem(
+              value: HubSort.recentlyUpdated,
+              child: Text('Recently updated'),
+            ),
+          ],
+          onChanged: (value) {
+            if (value != null) setState(() => _sort = value);
+          },
+        ),
+        const SizedBox(height: 16),
+        DropdownButtonFormField<_ModelSizeFilter>(
+          initialValue: _size,
+          isExpanded: true,
+          decoration: const InputDecoration(labelText: 'Model size'),
+          items: const [
+            DropdownMenuItem(
+              value: _ModelSizeFilter.any,
+              child: Text('Any size'),
+            ),
+            DropdownMenuItem(
+              value: _ModelSizeFilter.upTo4B,
+              child: Text('Up to 4B'),
+            ),
+            DropdownMenuItem(
+              value: _ModelSizeFilter.over4B,
+              child: Text('Over 4B'),
+            ),
+            DropdownMenuItem(
+              value: _ModelSizeFilter.unknown,
+              child: Text('Unknown size'),
+            ),
+          ],
+          onChanged: (value) {
+            if (value != null) setState(() => _size = value);
+          },
+        ),
+        const SizedBox(height: 16),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, (
+            publisher: _publisher.text.trim(),
+            sort: _sort,
+            size: _size,
+          )),
+          child: const Text('Apply filters'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ],
+    ),
+  );
+}

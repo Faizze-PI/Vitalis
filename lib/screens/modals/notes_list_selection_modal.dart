@@ -9,7 +9,8 @@ import '../../widgets/saved_text_preview.dart';
 import 'note_edit_modal.dart';
 
 class NotesListSelectionModal extends StatefulWidget {
-  const NotesListSelectionModal({super.key});
+  const NotesListSelectionModal({super.key, this.selectionEnabled = true});
+  final bool selectionEnabled;
 
   @override
   State<NotesListSelectionModal> createState() =>
@@ -83,9 +84,9 @@ class _NotesListSelectionModalState extends State<NotesListSelectionModal> {
                 children: [
                   Semantics(
                     header: true,
-                    child: const Text(
-                      AppStrings.selectNote,
-                      style: TextStyle(
+                    child: Text(
+                      widget.selectionEnabled ? AppStrings.selectNote : 'Notes',
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -111,7 +112,7 @@ class _NotesListSelectionModalState extends State<NotesListSelectionModal> {
                           ...noteProvider.notes.map(
                             (note) => Semantics(
                               label:
-                                  '${canMutate ? AppStrings.selectNote : 'View note'}: ${note.title}',
+                                  '${canMutate && widget.selectionEnabled ? AppStrings.selectNote : 'View note'}: ${note.title}',
                               button: true,
                               child: ListTile(
                                 leading: const Icon(Icons.note),
@@ -180,7 +181,7 @@ class _NotesListSelectionModalState extends State<NotesListSelectionModal> {
                                     ),
                                   ],
                                 ),
-                                onTap: canMutate
+                                onTap: canMutate && widget.selectionEnabled
                                     ? () => _selectNote(note)
                                     : () => showSavedTextPreview(
                                         context,

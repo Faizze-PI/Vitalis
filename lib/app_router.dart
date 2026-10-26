@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'screens/setup_screen.dart';
+import 'screens/home_screen.dart';
 import 'screens/chat_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/model_library_screen.dart';
@@ -10,7 +11,9 @@ import 'utils/debug_state.dart';
 class AppRoutes {
   AppRoutes._();
   static const String setup = '/'; // hardcode: HC-043
+  static const String home = '/home'; // hardcode: HC-043
   static const String chat = '/chat'; // hardcode: HC-043
+  static const String chatSettings = '/chat-settings'; // hardcode: HC-043
   static const String settings = '/settings'; // hardcode: HC-043
   static const String debug = '/debug'; // hardcode: HC-043
   static const String modelLibrary = '/models'; // hardcode: HC-043
@@ -25,9 +28,19 @@ Route<dynamic>? onGenerateRoute(RouteSettings routeSettings) {
         builder: (_) => const SetupScreen(),
         settings: routeSettings,
       );
+    case AppRoutes.home:
+      return MaterialPageRoute(
+        builder: (_) => const HomeScreen(),
+        settings: routeSettings,
+      );
     case AppRoutes.chat:
       return MaterialPageRoute(
         builder: (_) => const ChatScreen(),
+        settings: routeSettings,
+      );
+    case AppRoutes.chatSettings:
+      return MaterialPageRoute(
+        builder: (_) => const SettingsScreen.chat(),
         settings: routeSettings,
       );
     case AppRoutes.settings:

@@ -16,6 +16,8 @@ import '../services/model_registry_service.dart';
 import '../services/model_warmup_service.dart';
 import '../services/runtime_capabilities_provider.dart';
 import '../models/model_settings.dart';
+import '../models/generation_setting.dart';
+import '../widgets/validated_setting_editor_dialog.dart';
 import '../models/model_descriptor.dart';
 import '../models/bundled_model_manifest.dart';
 import '../services/selected_model_readiness.dart';
@@ -27,9 +29,13 @@ import '../widgets/system_prompt_editor_dialog.dart';
 import '../services/startup_access_guard.dart';
 
 part 'settings_mutation_actions.dart';
+part 'settings_app_sections.dart';
+part 'settings_chat_sections.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key, this.logger});
+  const SettingsScreen({super.key, this.logger}) : _chatSettings = false;
+  const SettingsScreen.chat({super.key, this.logger}) : _chatSettings = true;
+  final bool _chatSettings;
   final AppLogger? logger;
 
   @override
@@ -38,7 +44,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late Future<String> _appVersionFuture;
-  late Future<bool> _vulkanAvailableFuture;
+  Future<bool>? _vulkanAvailableFuture;
   bool _privacyMode = true;
   bool _importing = false;
   bool _resettingAuto = false;
@@ -151,9 +157,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         .then((info) => 'App Version ${info.version} (${info.buildNumber})')
         .catchError((_) => 'App Version unavailable');
     _privacyMode = _logger.isPrivacyMode;
-    _vulkanAvailableFuture = const AndroidRuntimeCapabilitiesProvider()
-        .snapshot()
-        .then((capabilities) => capabilities.supportsBackend('vulkan'));
   }
 
   Future<void> _clearLogs() async {
@@ -202,320 +205,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     try {
-      final chatProvider = context.watch<ChatProvider>();
-      final settings = chatProvider.settings;
-      final themeProvider = context.watch<ThemeProvider>();
-      final ownerId = chatProvider.currentChat?.id;
-      void preview(ModelSettings next) =>
-          _previewChatSettings(chatProvider, next, ownerId, settings.modelId);
-      Future<void> persist(ModelSettings next) =>
-          _persistChatSettings(chatProvider, next, ownerId, settings.modelId);
+      final chatProvider = widget._chatSettings
+          ? context.watch<ChatProvider>()
+          : null;
+      final themeProvider = widget._chatSettings
+          ? null
+          : context.watch<ThemeProvider>();
 
       return StartupMutationAccess(
         builder: (context, canMutate) => Scaffold(
-          appBar: AppBar(title: const Text(AppStrings.settingsTitle)),
+          appBar: AppBar(
+            title: Text(
+              widget._chatSettings ? 'Chat settings' : AppStrings.settingsTitle,
+            ),
+          ),
           body: ListView(
             padding: const EdgeInsets.all(16),
-            children: [
-              // --- Appearance ---
-              Semantics(
-                header: true,
-                child: const Text(
-                  AppStrings.appearance,
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Semantics(
-                label: AppStrings.darkMode,
-                child: SwitchListTile(
-                  title: const Text(AppStrings.darkMode),
-                  subtitle: const Text(AppStrings.toggleDark),
-                  value: themeProvider.isDark,
-                  onChanged: !canMutate || _themeChanging
-                      ? null
-                      : (_) => _toggleTheme(themeProvider),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // --- Privacy ---
-              Semantics(
-                header: true,
-                child: const Text(
-                  AppStrings.privacy,
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Semantics(
-                label: AppStrings.privacyMode,
-                child: SwitchListTile(
-                  title: const Text(AppStrings.privacyMode),
-                  subtitle: Text(
-                    _privacyMode
-                        ? 'INFO logs disabled. WARN/ERROR only.'
-                        : 'All diagnostic data logged.',
-                  ),
-                  value: _privacyMode,
-                  onChanged: canMutate && !_privacyChanging
-                      ? _changePrivacyMode
-                      : null,
-                ),
-              ),
-              ExpansionTile(
-                title: const Text(AppStrings.whatIsLogged),
-                leading: const Icon(Icons.info_outline, size: 20),
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Text(
-                      AppStrings.loggedFields,
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Semantics(
-                label: AppStrings.clearLogs,
-                button: true,
-                child: ListTile(
-                  leading: const Icon(Icons.delete_sweep, size: 20),
-                  title: const Text(AppStrings.clearLogs),
-                  onTap: canMutate && !_clearingLogs ? _clearLogs : null,
-                ),
-              ),
-              Semantics(
-                label: AppStrings.privacyPolicy,
-                button: true,
-                child: ListTile(
-                  leading: const Icon(Icons.privacy_tip, size: 20),
-                  title: const Text(AppStrings.privacyPolicy),
-                  onTap: () {
-                    showDialog(
-                      context: context,
-                      builder: (ctx) => AlertDialog(
-                        title: const Text(AppStrings.privacyPolicy),
-                        content: const SingleChildScrollView(
-                          child: Text(
-                            'Conversations, notes, personas, and settings stay on your device. '
-                            'Inference runs locally. No cloud inference or conversation upload is used.\n\n'
-                            'Model Library uses HTTPS to search and download public models from Hugging Face. '
-                            'Your search text, requested model identifiers, and normal connection information '
-                            '(such as your IP address) are visible to Hugging Face and its download hosts. '
-                            'Chats, notes, personas, prompts, and local model paths are not included in these requests.\n\n'
-                            'Contact: support@vitalis.app',
-                          ),
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(ctx),
-                            child: const Text(AppStrings.close),
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // --- Model Info ---
-              Semantics(
-                header: true,
-                child: const Text(
-                  AppStrings.modelInfo,
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 12),
-              ListTile(
-                leading: const Icon(Icons.view_in_ar),
-                title: const Text('Model Library'),
-                subtitle: const Text(
-                  'Browse public Hugging Face GGUF models, downloads, and installed models.',
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () =>
-                    Navigator.pushNamed(context, AppRoutes.modelLibrary),
-              ),
-              FutureBuilder<ModelDescriptor?>(
-                future: _modelRegistry.findById(settings.modelId),
-                builder: (context, snapshot) {
-                  final model = snapshot.data;
-                  return Column(
-                    children: [
-                      _infoRow(
-                        AppStrings.modelName,
-                        model?.displayName ?? 'Model unavailable',
-                      ),
-                      _infoRow(
-                        AppStrings.quantization,
-                        model?.quantization ?? AppStrings.unknown,
-                      ),
-                      _infoRow(
-                        AppStrings.parameters,
-                        model?.parameterCount == null
-                            ? AppStrings.unknown
-                            : '${(model!.parameterCount! / 1000000000).toStringAsFixed(1)}B',
-                      ),
-                      _infoRow(
-                        AppStrings.contextWindow,
-                        '${model?.contextTrain ?? AppConstants.defaultContextSize} tokens (training maximum)',
-                      ),
-                      _infoRow(
-                        AppStrings.fileSize,
-                        model?.byteSize == null
-                            ? AppStrings.notDownloaded
-                            : '${(model!.byteSize! / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB',
-                      ),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 24),
-
-              // --- Model Settings ---
-              Semantics(
-                header: true,
-                child: const Text(
-                  AppStrings.modelSettings,
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.tune),
-                title: const Text('System prompt'),
-                subtitle: Text(
-                  settings.systemPrompt,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                onTap: canMutate
-                    ? () => _editSystemPrompt(chatProvider, settings)
-                    : null,
-              ),
-              FutureBuilder<ModelDescriptor?>(
-                future: _modelRegistry.findById(settings.modelId),
-                builder: (context, snapshot) {
-                  final supportsThinking =
-                      snapshot.data?.supportsThinking == true;
-                  return SwitchListTile(
-                    title: const Text('Thinking mode'),
-                    subtitle: Text(
-                      supportsThinking
-                          ? 'Off is faster and disables reasoning through the verified model template.'
-                          : 'Unavailable until this model template is verified.',
-                    ),
-                    value:
-                        supportsThinking &&
-                        settings.thinkingMode == ThinkingMode.on,
-                    onChanged: supportsThinking && canMutate
-                        ? (enabled) => persist(
-                            chatProvider.settings.copyWith(
-                              thinkingMode: enabled
-                                  ? ThinkingMode.on
-                                  : ThinkingMode.off,
-                            ),
-                          )
-                        : null,
-                  );
-                },
-              ),
-              DropdownButtonFormField<TuningMode>(
-                initialValue: settings.tuningMode,
-                decoration: const InputDecoration(labelText: 'Runtime tuning'),
-                items: const [
-                  DropdownMenuItem(
-                    value: TuningMode.automatic,
-                    child: Text('Automatic'),
-                  ),
-                  DropdownMenuItem(
-                    value: TuningMode.advanced,
-                    child: Text('Advanced'),
-                  ),
-                ],
-                onChanged: !canMutate
-                    ? null
-                    : (mode) {
-                        if (mode != null) {
-                          persist(
-                            chatProvider.settings.copyWith(tuningMode: mode),
-                          );
-                        }
-                      },
-              ),
-              if (settings.tuningMode == TuningMode.advanced)
-                _buildAdvancedSettings(chatProvider, settings, canMutate),
-              _buildSliderSetting(
-                enabled: canMutate,
-                label: AppStrings.temperatureLabel,
-                value: settings.temperature,
-                min: 0.0,
-                max: 2.0,
-                divisions: 20,
-                onChanged: (value) =>
-                    preview(chatProvider.settings.copyWith(temperature: value)),
-                onChangeEnd: (value) =>
-                    persist(chatProvider.settings.copyWith(temperature: value)),
-              ),
-              _buildSliderSetting(
-                enabled: canMutate,
-                label: AppStrings.topPLabel,
-                value: settings.topP,
-                min: 0.0,
-                max: 1.0,
-                divisions: 20,
-                onChanged: (value) =>
-                    preview(chatProvider.settings.copyWith(topP: value)),
-                onChangeEnd: (value) =>
-                    persist(chatProvider.settings.copyWith(topP: value)),
-              ),
-              _buildSliderSetting(
-                enabled: canMutate,
-                label: AppStrings.topKLabel,
-                value: settings.topK.toDouble(),
-                min: 1,
-                max: 100,
-                divisions: 99,
-                displayValue: settings.topK.toString(),
-                onChanged: (value) => preview(
-                  chatProvider.settings.copyWith(topK: value.toInt()),
-                ),
-                onChangeEnd: (value) => persist(
-                  chatProvider.settings.copyWith(topK: value.toInt()),
-                ),
-              ),
-              _buildSliderSetting(
-                enabled: canMutate,
-                label: AppStrings.maxTokensLabel,
-                value: settings.maxTokens.toDouble(),
-                min: 64,
-                max: 4096,
-                divisions: 63,
-                displayValue: settings.maxTokens.toString(),
-                onChanged: (value) => preview(
-                  chatProvider.settings.copyWith(maxTokens: value.toInt()),
-                ),
-                onChangeEnd: (value) => persist(
-                  chatProvider.settings.copyWith(maxTokens: value.toInt()),
-                ),
-              ),
-              const SizedBox(height: 24),
-              ListTile(
-                leading: _importing
-                    ? const CircularProgressIndicator()
-                    : const Icon(Icons.file_open),
-                title: const Text('Import local GGUF model'),
-                subtitle: const Text(
-                  'Validates and copies the model into private app storage.',
-                ),
-                onTap: _importing ? null : _importModel,
-              ),
-              _buildRedownloadButton(canMutate),
-            ],
+            children: widget._chatSettings
+                ? _buildChatSections(chatProvider!, canMutate)
+                : _buildAppSections(themeProvider!, canMutate),
           ),
         ),
       );
@@ -548,26 +256,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  Future<void> _showOwnedSettingsEditor(
+    ChatProvider provider,
+    int? chatId,
+    String modelId,
+    Widget Function() editor,
+  ) async {
+    if (!mounted) return;
+    try {
+      _requireSettingsView(provider, chatId, modelId);
+      final dialog = editor();
+      await showDialog<void>(context: context, builder: (_) => dialog);
+    } catch (error) {
+      _reportSettingsActionFailure(error);
+    }
+  }
+
+  Future<void> _editGenerationSetting(
+    ChatProvider provider,
+    GenerationSetting field,
+    int? chatId,
+    String modelId,
+  ) => _showOwnedSettingsEditor(
+    provider,
+    chatId,
+    modelId,
+    () => ValidatedSettingEditorDialog(
+      label: field.label,
+      description: field.description,
+      initialValue: field.valueOf(provider.settings),
+      validate: field.validate,
+      presets: field == GenerationSetting.maxTokens
+          ? GenerationSettingsPresentationPolicy.outputPresets
+          : const [],
+      keyboardType: TextInputType.numberWithOptions(
+        signed: true,
+        decimal: !field.isInteger,
+      ),
+      onSave: (value) {
+        _requireSettingsView(provider, chatId, modelId);
+        return provider.updateSettings(field.apply(provider.settings, value));
+      },
+    ),
+  );
+
   Future<void> _editSystemPrompt(
     ChatProvider provider,
     ModelSettings settings,
-  ) async {
-    final chatId = provider.currentChat?.id;
-    await showDialog<void>(
-      context: context,
-      builder: (_) => SystemPromptEditorDialog(
-        initialPrompt: settings.systemPrompt,
-        onSave: (value) {
-          if (provider.currentChat?.id != chatId) {
-            throw StateError('Chat selection changed while editing');
-          }
-          return provider.updateSettings(
-            provider.settings.copyWith(systemPrompt: value),
-          );
-        },
-      ),
-    );
-  }
+    int? chatId,
+  ) => _showOwnedSettingsEditor(
+    provider,
+    chatId,
+    settings.modelId,
+    () => SystemPromptEditorDialog(
+      initialPrompt: settings.systemPrompt,
+      onSave: (value) {
+        _requireSettingsView(provider, chatId, settings.modelId);
+        return provider.updateSettings(
+          provider.settings.copyWith(systemPrompt: value),
+        );
+      },
+    ),
+  );
 
   Widget _buildAdvancedSettings(
     ChatProvider provider,
@@ -690,7 +440,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
         FutureBuilder<bool>(
-          future: _vulkanAvailableFuture,
+          future: _vulkanAvailableFuture ??=
+              const AndroidRuntimeCapabilitiesProvider().snapshot().then(
+                (capabilities) => capabilities.supportsBackend('vulkan'),
+              ),
           builder: (context, snapshot) {
             final available = snapshot.data ?? false;
             return SwitchListTile(
@@ -760,24 +513,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Widget _infoRow(String label, String value) {
-    return Semantics(
-      label: '$label: $value',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label, style: const TextStyle(fontSize: 14)),
-            Text(
-              value,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+  Widget _infoRow(String label, String value) => Semantics(
+    label: '$label: $value',
+    excludeSemantics: true,
+    child: Padding(
+      padding: const EdgeInsets.symmetric(vertical: AppMetrics.spaceXs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: AppMetrics.spaceXxs),
+          Text(value, style: Theme.of(context).textTheme.bodyLarge),
+        ],
       ),
-    );
-  }
+    ),
+  );
 
   Widget _buildSliderSetting({
     required bool enabled,
@@ -795,8 +550,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            spacing: AppMetrics.spaceXs,
+            runSpacing: AppMetrics.spaceXxs,
             children: [
               Text(label),
               Text(displayValue ?? value.toStringAsFixed(2)),

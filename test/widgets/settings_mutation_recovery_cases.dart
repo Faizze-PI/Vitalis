@@ -4,13 +4,13 @@ void _registerSettingsMutationCases() {
   testWidgets(
     'slider preview and commit preserve the selected settings owner',
     (tester) async {
-      final fixture = await _pump(tester, ready: true);
+      final fixture = await _pump(tester, ready: true, advanced: true);
       final slider = tester.widgetList<Slider>(find.byType(Slider)).first;
-      slider.onChanged!(0.6);
+      slider.onChanged!(2048);
       await tester.pump();
       expect(fixture.chat.previews, 1);
-      expect(fixture.chat.settings.temperature, 0.6);
-      slider.onChangeEnd!(0.6);
+      expect(fixture.chat.settings.contextSizeOverride, 2048);
+      slider.onChangeEnd!(2048);
       await tester.pumpAndSettle();
       expect(fixture.chat.updates, 1);
       expect(fixture.chat.settings.modelId, 'original-chat-model');
@@ -21,11 +21,11 @@ void _registerSettingsMutationCases() {
   testWidgets('settings callbacks after disposal cannot start writes', (
     tester,
   ) async {
-    final fixture = await _pump(tester, ready: true);
+    final fixture = await _pump(tester, ready: true, advanced: true);
     final slider = tester.widgetList<Slider>(find.byType(Slider)).first;
     await tester.pumpWidget(const SizedBox());
-    slider.onChanged!(0.6);
-    slider.onChangeEnd!(0.6);
+    slider.onChanged!(2048);
+    slider.onChangeEnd!(2048);
     await tester.pumpAndSettle();
     expect(fixture.chat.previews, 0);
     expect(fixture.chat.updates, 0);
@@ -67,6 +67,7 @@ void _registerSettingsMutationCases() {
     final fixture = await _pump(
       tester,
       ready: true,
+      advanced: true,
       access: StartupAccessGuard(() => _dialogCapabilities(ready)),
     );
     final change = tester
@@ -74,7 +75,7 @@ void _registerSettingsMutationCases() {
         .first
         .onChanged!;
     ready = false;
-    expect(() => change(0.6), returnsNormally);
+    expect(() => change(2048), returnsNormally);
     await tester.pumpAndSettle();
     expect(fixture.chat.updates, 0);
     expect(
@@ -87,7 +88,7 @@ void _registerSettingsMutationCases() {
   testWidgets('old slider persistence cannot modify a newly selected chat', (
     tester,
   ) async {
-    final fixture = await _pump(tester, ready: true);
+    final fixture = await _pump(tester, ready: true, advanced: true);
     final finish = tester
         .widgetList<Slider>(find.byType(Slider))
         .first
@@ -98,7 +99,7 @@ void _registerSettingsMutationCases() {
       createdAt: DateTime(2026),
       updatedAt: DateTime(2026),
     );
-    finish(0.9);
+    finish(2048);
     await tester.pumpAndSettle();
     expect(fixture.chat.updates, 0);
     expect(fixture.chat.settings.temperature, 0.7);

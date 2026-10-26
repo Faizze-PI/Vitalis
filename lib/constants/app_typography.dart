@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Vitalis typography scale.
-/// Applied via ThemeData textTheme overrides in main.dart.
+/// Applied through the shared AppTheme in lib/theme/app_theme.dart.
 class AppTypography {
   AppTypography._();
 
@@ -11,11 +11,19 @@ class AppTypography {
     headlineLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.w600),
     headlineMedium: TextStyle(fontSize: 22, fontWeight: FontWeight.w500),
     headlineSmall: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
-    titleLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
+    titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
     titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
     titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-    bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
-    bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400),
+    bodyLarge: TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w400,
+      height: 1.5,
+    ),
+    bodyMedium: TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w400,
+      height: 1.45,
+    ),
     bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w400),
     labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
     labelMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),

@@ -189,7 +189,7 @@ void _registerDialogRecoveryCases() {
   testWidgets('disposed Settings cannot activate a pending import', (
     tester,
   ) async {
-    final fixture = await _pump(tester, ready: false);
+    final fixture = await _pump(tester, ready: false, appSettings: true);
     final pending = Completer<ModelDescriptor?>();
     fixture.registry.pending = pending;
     await tester.tap(find.text('Import local GGUF model'));

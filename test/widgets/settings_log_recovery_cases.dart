@@ -14,7 +14,7 @@ void _registerLogRecoveryCases() {
       privacySaver: (_) async {},
       clock: () => DateTime(2026),
     );
-    await _pump(tester, ready: true, logging: logger);
+    await _pump(tester, appSettings: true, ready: true, logging: logger);
     final action = tester
         .widget<ListTile>(find.widgetWithText(ListTile, AppStrings.clearLogs))
         .onTap!;
@@ -36,7 +36,7 @@ void _registerLogRecoveryCases() {
       privacySaver: (_) async {},
       clock: () => DateTime(2026),
     );
-    await _pump(tester, ready: true, logging: logger);
+    await _pump(tester, appSettings: true, ready: true, logging: logger);
     await tester.tap(find.widgetWithText(ListTile, AppStrings.clearLogs));
     await tester.pumpAndSettle();
     await tester.tap(find.text(AppStrings.confirm));

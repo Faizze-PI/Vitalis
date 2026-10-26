@@ -13,6 +13,8 @@ const requirements = <CoverageRequirement>[
   CoverageRequirement('lib/widgets/response_frame_observer.dart', 90),
   CoverageRequirement('lib/widgets/startup_mutation_access.dart', 90),
   CoverageRequirement('lib/widgets/system_prompt_editor_dialog.dart', 90),
+  CoverageRequirement('lib/widgets/validated_setting_editor_dialog.dart', 90),
+  CoverageRequirement('lib/models/generation_setting.dart', 90),
   CoverageRequirement('lib/screens/settings_mutation_actions.dart', 90),
   CoverageRequirement('lib/models/startup_capabilities.dart', 90),
   CoverageRequirement('lib/services/startup_coordinator.dart', 90),

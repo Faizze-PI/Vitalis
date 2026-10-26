@@ -54,7 +54,7 @@ class _SetupScreenState extends State<SetupScreen> {
       final hasSavedChats =
           (await DatabaseHelper.instance.getChats()).isNotEmpty;
       if ((installed || hasSavedChats) && mounted) {
-        Navigator.of(context).pushReplacementNamed(AppRoutes.chat);
+        Navigator.of(context).pushReplacementNamed(AppRoutes.home);
         return;
       }
     } catch (e) {
@@ -164,7 +164,7 @@ class _SetupScreenState extends State<SetupScreen> {
                           if (mounted) {
                             Navigator.of(
                               context,
-                            ).pushReplacementNamed(AppRoutes.chat);
+                            ).pushReplacementNamed(AppRoutes.home);
                           }
                         },
                         child: const Text(AppStrings.startChatting),

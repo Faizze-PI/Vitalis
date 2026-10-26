@@ -20,6 +20,7 @@ const _model = HubModelSummary(
 class _Library extends ChangeNotifier implements ModelLibraryProvider {
   final downloadGate = Completer<ModelDownloadJob>();
   final storedJobs = <ModelDownloadJob>[];
+  final searches = <({String query, HubSort sort, String? publisher})>[];
   @override
   ModelLibraryStatus status = ModelLibraryStatus.idle;
   @override
@@ -85,7 +86,10 @@ class _Library extends ChangeNotifier implements ModelLibraryProvider {
     String query, {
     HubSort sort = HubSort.downloads,
     String? publisher,
-  }) async {}
+  }) async {
+    searches.add((query: query, sort: sort, publisher: publisher));
+  }
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -98,11 +102,135 @@ Future<void> _openSearch(WidgetTester tester, _Library library) async {
     ),
   );
   await tester.pumpAndSettle();
-  await tester.tap(find.text('Hugging Face'));
+  await tester.tap(find.text('Browse'));
   await tester.pumpAndSettle();
 }
 
 void main() {
+  testWidgets('browse keeps every section visible and hides advanced filters', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final library = _Library();
+    addTearDown(library.dispose);
+    await tester.pumpWidget(
+      ChangeNotifierProvider<ModelLibraryProvider>.value(
+        value: library,
+        child: const MaterialApp(home: ModelLibraryScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final selector = find.byType(DropdownButton<int>);
+    if (selector.evaluate().isNotEmpty) {
+      await tester.tap(selector);
+      await tester.pumpAndSettle();
+      expect(find.text('Installed').hitTestable(), findsOneWidget);
+      expect(find.text('Downloads').hitTestable(), findsOneWidget);
+      await tester.tap(find.text('Browse').last);
+      await tester.pumpAndSettle();
+    } else {
+      for (final label in ['Browse', 'Installed', 'Downloads']) {
+        expect(find.text(label).hitTestable(), findsOneWidget);
+      }
+    }
+    expect(find.text('Publisher filter (optional)'), findsNothing);
+    await tester.tap(find.byTooltip('Search filters'));
+    await tester.pumpAndSettle();
+    expect(find.text('Publisher filter (optional)'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'filters commit on Apply and dismiss without changing active search',
+    (tester) async {
+      final library = _Library();
+      addTearDown(library.dispose);
+      await _openSearch(tester, library);
+      await tester.tap(find.byTooltip('Search filters'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Publisher filter (optional)'),
+        'Qwen',
+      );
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(library.searches, isEmpty);
+      await tester.tap(find.byTooltip('Search filters'));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<TextField>(
+              find.widgetWithText(TextField, 'Publisher filter (optional)'),
+            )
+            .controller!
+            .text,
+        isEmpty,
+      );
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Publisher filter (optional)'),
+        ' Qwen ',
+      );
+      await tester.tap(find.text('Apply filters'));
+      await tester.pumpAndSettle();
+      expect(library.searches.single.publisher, 'Qwen');
+      await tester.tap(find.byTooltip('Search filters'));
+      await tester.pumpAndSettle();
+      expect(
+        tester
+            .widget<TextField>(
+              find.widgetWithText(TextField, 'Publisher filter (optional)'),
+            )
+            .controller!
+            .text,
+        'Qwen',
+      );
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(library.searches, hasLength(1));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('large text section selector navigates without clipping', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final library = _Library();
+    addTearDown(library.dispose);
+    await tester.pumpWidget(
+      ChangeNotifierProvider<ModelLibraryProvider>.value(
+        value: library,
+        child: MaterialApp(
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(textScaler: const TextScaler.linear(2)),
+            child: child!,
+          ),
+          home: const ModelLibraryScreen(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.takeException(),
+      isNull,
+      reason: 'initial large-text Browse layout',
+    );
+    await tester.tap(find.byType(DropdownButton<int>));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Installed'));
+    await tester.pumpAndSettle();
+    expect(find.text('Import Local GGUF'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('accepted download opens progress before transfer completion', (
     tester,
   ) async {
@@ -113,8 +241,6 @@ void main() {
     final library = _Library();
     addTearDown(library.dispose);
     await _openSearch(tester, library);
-    await tester.tap(find.text('Recommended'));
-    await tester.pumpAndSettle();
     await tester.tap(find.text(_model.id));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Test GGUF'));

@@ -20,6 +20,7 @@ void main() {
   late SelectedModelReadiness readiness;
   late _Registry registry;
   var safetyReady = true;
+  var inspections = 0;
 
   setUpAll(() async {
     sqfliteFfiInit();
@@ -34,11 +35,13 @@ void main() {
     );
     safetyReady = true;
     registry = _Registry();
-    readiness = SelectedModelReadiness(
-      (id) async => id == 'disposable-model'
+    inspections = 0;
+    readiness = SelectedModelReadiness((id) async {
+      inspections++;
+      return id == 'disposable-model'
           ? StartupModelReadiness.ready
-          : StartupModelReadiness.missing,
-    );
+          : StartupModelReadiness.missing;
+    });
     await readiness.select('missing-default');
     chat = ChatProvider(
       database: database,
@@ -78,6 +81,47 @@ void main() {
         'disposable-model',
       );
       expect(readiness.readiness, StartupModelReadiness.ready);
+    },
+  );
+
+  test(
+    'new chat retains the explicitly selected model across reload',
+    () async {
+      await chat.switchModel('disposable-model');
+      final firstId = chat.currentChat!.id!;
+      final created = await chat.createChat(title: 'Second disposable chat');
+      expect(created, isNotNull);
+      expect(created!.id, isNot(firstId));
+      expect(chat.settings.modelId, 'disposable-model');
+      expect(readiness.readiness, StartupModelReadiness.ready);
+      expect(
+        (await database.getModelSettings(created.id!))!['model_id'],
+        'disposable-model',
+      );
+      await chat.selectChat(firstId);
+      await chat.selectChat(created.id!);
+      expect(chat.settings.modelId, 'disposable-model');
+    },
+  );
+
+  test(
+    'new chat reuses established readiness but never bypasses invalidation',
+    () async {
+      await chat.switchModel('disposable-model');
+      final before = inspections;
+      final observed = <StartupModelReadiness>[];
+      readiness.addListener(() => observed.add(readiness.readiness));
+      await chat.createChat(title: 'Same verified model');
+      expect(
+        inspections,
+        before,
+        reason: 'New chat does not change the model file',
+      );
+      expect(observed, isNot(contains(StartupModelReadiness.checking)));
+      expect(readiness.readiness, StartupModelReadiness.ready);
+      readiness.invalidate();
+      await expectLater(chat.createChat(), throwsA(isA<StartupAccessDenied>()));
+      expect(readiness.readiness, StartupModelReadiness.unknown);
     },
   );
 

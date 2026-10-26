@@ -3,7 +3,7 @@ description: On-device, context-aware AI assistant with integrated knowledge man
 repository: https://github.com/Faizze-PI/Vitalis
 issue_tracker: https://github.com/Faizze-PI/Vitalis/issues
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: ^3.12.0

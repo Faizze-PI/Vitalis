@@ -40,6 +40,24 @@ Message _message(MessageRole role, String content) =>
 
 void main() {
   test(
+    'large requested output remains bounded by exact available context',
+    () async {
+      final result = await ContextPlanner(_ExactCounter()).plan(
+        systemPrompt: 'fixed',
+        attachedNotes: [],
+        messages: [_message(MessageRole.user, 'current')],
+        profile: _profile(context: 100, output: 9223372036854775807),
+      );
+      expect(result.promptTokens, 12);
+      expect(result.reservedOutputTokens, 88);
+      expect(
+        result.promptTokens + result.reservedOutputTokens,
+        result.contextSize,
+      );
+    },
+  );
+
+  test(
     'failed trailing assistant cannot resurrect an earlier user request',
     () async {
       await expectLater(

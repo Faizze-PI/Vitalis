@@ -8,6 +8,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vitalis_app/database/database_helper.dart';
 import 'package:vitalis_app/models/chat.dart';
 import 'package:vitalis_app/models/message.dart';
+import 'package:vitalis_app/models/model_descriptor.dart';
+import 'package:vitalis_app/services/model_registry_service.dart';
 import 'package:vitalis_app/models/note.dart';
 import 'package:vitalis_app/models/startup_capabilities.dart';
 import 'package:vitalis_app/providers/chat_provider.dart';
@@ -15,6 +17,7 @@ import 'package:vitalis_app/providers/generation_provider.dart';
 import 'package:vitalis_app/providers/health_provider.dart';
 import 'package:vitalis_app/providers/theme_provider.dart';
 import 'package:vitalis_app/screens/chat_screen.dart';
+import 'package:vitalis_app/theme/app_theme.dart';
 import 'package:vitalis_app/services/chat_state_controller.dart';
 import 'package:vitalis_app/services/model_warmup_service.dart';
 import 'package:vitalis_app/services/response_frame_timing.dart';
@@ -24,6 +27,202 @@ import 'package:vitalis_app/widgets/message_bubble.dart';
 import 'package:vitalis_app/constants/app_strings.dart';
 
 void main() {
+  for (final fails in [false, true]) {
+    testWidgets(
+      'pending prompt save cannot affect a newly selected chat failure=$fails',
+      (tester) async {
+        final database = _Database()..insertGate = Completer<void>();
+        if (fails)
+          database.insertFailure = StateError('private delayed fixture');
+        final chat = await _pumpChat(tester, database);
+        await tester.enterText(find.byType(TextField), 'Old chat request');
+        await tester.pump();
+        await tester.tap(find.byTooltip(AppStrings.sendMessage));
+        await tester.pump();
+        await chat.selectChat(2);
+        await tester.pumpAndSettle();
+        expect(
+          tester.widget<TextField>(find.byType(TextField)).enabled,
+          isTrue,
+        );
+        await tester.enterText(find.byType(TextField), 'Second chat draft');
+        database.insertGate!.complete();
+        await tester.pumpAndSettle();
+        expect(chat.currentChat!.id, 2);
+        expect(chat.messages, isEmpty);
+        expect(chat.hasError, isFalse);
+        expect(
+          tester.widget<TextField>(find.byType(TextField)).controller!.text,
+          'Second chat draft',
+        );
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+  }
+
+  testWidgets(
+    'composer retains unsaved input when provider reports a storage failure',
+    (tester) async {
+      final database = _Database()
+        ..insertFailure = StateError('private storage fixture');
+      await _pumpChat(tester, database);
+      await tester.enterText(find.byType(TextField), 'Keep this unsaved draft');
+      await tester.pump();
+      await tester.tap(find.byTooltip(AppStrings.sendMessage));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        'Keep this unsaved draft',
+      );
+      expect(
+        database.rows.where((row) => row.role == MessageRole.user),
+        isEmpty,
+      );
+      expect(find.textContaining('private storage fixture'), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets(
+    'selected persona stays visible and can be removed without detaching notes',
+    (tester) async {
+      final database = _Database()
+        ..personaId = 7
+        ..notes.add(Note(id: 1, title: 'Packing list', content: 'A test note'));
+      final chat = await _pumpChat(tester, database);
+      expect(find.text('Persona: Travel guide'), findsOneWidget);
+      await tester.tap(find.byTooltip('Remove persona: Travel guide'));
+      await tester.pumpAndSettle();
+      expect(chat.currentPersona, isNull);
+      expect(chat.attachedNotes.map((note) => note.id), [1]);
+      expect(database.personaId, isNull);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets('conversation fits a narrow screen with large text and RTL', (
+    tester,
+  ) async {
+    final database = _Database()
+      ..modelNames['large'] = 'A model with a very long display name'
+      ..modelIds[1] = 'large';
+    await _pumpChat(
+      tester,
+      database,
+      textScale: 2,
+      direction: TextDirection.rtl,
+    );
+    tester.view.physicalSize = const Size(320, 800);
+    await tester.pumpAndSettle();
+    expect(find.text('A model with a very long display name'), findsOneWidget);
+    final bar = tester.getRect(find.byType(AppBar));
+    final model = tester.getRect(
+      find.text('A model with a very long display name'),
+    );
+    expect(
+      model.bottom,
+      lessThanOrEqualTo(bar.bottom),
+      reason: 'Model control must remain inside the toolbar at large text',
+    );
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets(
+    'device details show memory as a value instead of a provider object',
+    (tester) async {
+      await _pumpChat(tester, _Database());
+      await tester.tap(find.bySemanticsLabel(AppStrings.healthStatus));
+      await tester.pumpAndSettle();
+      expect(find.text('Memory: 256 MB'), findsOneWidget);
+      expect(find.textContaining('Instance of'), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets('header names the assigned model and follows chat selection', (
+    tester,
+  ) async {
+    final database = _Database()
+      ..modelIds.addAll({1: 'first', 2: 'second'})
+      ..modelNames.addAll({
+        'first': 'First test model',
+        'second': 'Second test model',
+      });
+    final chat = await _pumpChat(tester, database);
+    expect(find.text('First test model'), findsOneWidget);
+    expect(find.text('Model'), findsNothing);
+    await chat.selectChat(2);
+    await tester.pumpAndSettle();
+    expect(find.text('Second test model'), findsOneWidget);
+    expect(find.text('First test model'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets(
+    'header does not keep a previous model after a missing selection',
+    (tester) async {
+      final database = _Database()
+        ..modelIds.addAll({1: 'first', 2: 'missing'})
+        ..modelNames['first'] = 'First test model'
+        ..missingModels.add('missing');
+      final chat = await _pumpChat(tester, database);
+      await chat.selectChat(2);
+      await tester.pumpAndSettle();
+      expect(find.text('Model unavailable'), findsOneWidget);
+      expect(find.text('First test model'), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
+
+  testWidgets('late name lookup cannot replace the newly selected model', (
+    tester,
+  ) async {
+    final first = Completer<void>();
+    final database = _Database()
+      ..modelIds.addAll({1: 'first', 2: 'second'})
+      ..modelNames.addAll({
+        'first': 'First test model',
+        'second': 'Second test model',
+      })
+      ..modelGates['first'] = first.future;
+    final chat = await _pumpChat(tester, database);
+    expect(find.text('Checking model…'), findsOneWidget);
+    await chat.selectChat(2);
+    await tester.pumpAndSettle();
+    first.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('Second test model'), findsOneWidget);
+    expect(find.text('First test model'), findsNothing);
+    final reads = database.modelReads;
+    chat.notifyListeners();
+    await tester.pumpAndSettle();
+    expect(database.modelReads, reads);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('long model names fit a narrow chat header', (tester) async {
+    final name = List.filled(12, 'Long model name').join(' ');
+    final database = _Database()
+      ..modelNames['long'] = name
+      ..modelIds[1] = 'long';
+    await _pumpChat(tester, database);
+    tester.view.physicalSize = const Size(320, 800);
+    await tester.pumpAndSettle();
+    final label = tester.widget<Text>(find.text(name));
+    expect(label.maxLines, 1);
+    expect(label.overflow, TextOverflow.ellipsis);
+    expect(find.byTooltip(name), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   test(
     'delayed attachment removal cannot change a newly selected chat',
     () async {
@@ -88,7 +287,7 @@ void main() {
         ),
       );
       await _pumpChat(tester, database);
-      await tester.tap(find.byIcon(Icons.menu));
+      await tester.tap(find.byTooltip(AppStrings.openMenu));
       await tester.pumpAndSettle();
       await tester.tap(find.text(AppStrings.exportConversation));
       await tester.pumpAndSettle();
@@ -137,7 +336,7 @@ void main() {
     );
     final chat = await _pumpChat(tester, database);
     expect(chat.messages, hasLength(100));
-    await tester.tap(find.byIcon(Icons.menu));
+    await tester.tap(find.byTooltip(AppStrings.openMenu));
     await tester.pumpAndSettle();
     await tester.tap(find.text(AppStrings.exportConversation));
     await tester.pumpAndSettle();
@@ -204,7 +403,8 @@ void main() {
     testWidgets(
       'ChatScreen records ${completeBeforeFrame ? 'saved' : 'streamed'} response paint',
       (tester) async {
-        final chat = ChatProvider(database: _Database());
+        final database = _Database();
+        final chat = ChatProvider(database: database);
         final generation = _Generation();
         final health = _Health();
         final warmup = _Warmup();
@@ -231,6 +431,9 @@ void main() {
                 value: readiness,
               ),
               Provider<StartupAccessGuard?>.value(value: null),
+              Provider<ModelRegistryService>(
+                create: (_) => ModelRegistryService(database: database),
+              ),
             ],
             child: const MaterialApp(home: ChatScreen()),
           ),
@@ -284,6 +487,8 @@ Future<ChatProvider> _pumpChat(
   WidgetTester tester,
   _Database database, {
   Brightness brightness = Brightness.light,
+  double textScale = 1,
+  TextDirection direction = TextDirection.ltr,
 }) async {
   tester.view.physicalSize = const Size(900, 1800);
   tester.view.devicePixelRatio = 1;
@@ -315,9 +520,18 @@ Future<ChatProvider> _pumpChat(
         ChangeNotifierProvider<ModelWarmupService>.value(value: warmup),
         ChangeNotifierProvider<SelectedModelReadiness>.value(value: readiness),
         Provider<StartupAccessGuard?>.value(value: null),
+        Provider<ModelRegistryService>(
+          create: (_) => ModelRegistryService(database: database),
+        ),
       ],
       child: MaterialApp(
-        theme: ThemeData(brightness: brightness),
+        theme: brightness == Brightness.dark ? AppTheme.dark : AppTheme.light,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          child: Directionality(textDirection: direction, child: child!),
+        ),
         home: const ChatScreen(),
       ),
     ),
@@ -386,7 +600,9 @@ final class _Health extends ChangeNotifier implements HealthProvider {
   @override
   bool get isSafeForHeavy => true;
   @override
-  int get rssMb => 0;
+  int get rssMb => 256;
+  @override
+  bool get batteryKnown => true;
   @override
   int get batteryLevel => 100;
   @override
@@ -407,11 +623,19 @@ final class _Warmup extends ChangeNotifier implements ModelWarmupService {
 }
 
 final class _Database implements DatabaseHelper {
+  final modelIds = <int, String>{};
+  final modelNames = <String, String>{};
+  final missingModels = <String>{};
+  final modelGates = <String, Future<void>>{};
+  int modelReads = 0;
+  int? personaId;
   final notes = <Note>[];
   final chatNotes = <int, List<Note>>{};
   Completer<void>? detachGate;
   Object? detachFailure;
   Object? exportFailure;
+  Object? insertFailure;
+  Completer<void>? insertGate;
   final rows = [
     Message(
       id: 1,
@@ -463,11 +687,40 @@ final class _Database implements DatabaseHelper {
   }
 
   @override
-  Future<Map<String, dynamic>?> getModelSettings(int chatId) async => null;
+  Future<Map<String, dynamic>?> getModelSettings(int chatId) async =>
+      modelIds.containsKey(chatId) ? {'model_id': modelIds[chatId]} : null;
   @override
-  Future<int?> getChatPersona(int chatId) async => null;
+  Future<Map<String, Object?>?> getModel(String id) async {
+    modelReads++;
+    await modelGates[id];
+    if (missingModels.contains(id)) return null;
+    return ModelDescriptor(
+      id: id,
+      displayName: modelNames[id] ?? 'Fixture model',
+      source: 'fixture',
+      compatibilityStatus: 'compatible',
+    ).toMap();
+  }
+
+  @override
+  Future<int?> getChatPersona(int chatId) async => personaId;
+  @override
+  Future<Map<String, dynamic>?> getPersona(int id) async => {
+    'id': id,
+    'name': 'Travel guide',
+    'system_prompt': 'Use a practical tone.',
+    'is_default': 0,
+  };
+  @override
+  Future<int> removeChatPersona(int chatId) async {
+    personaId = null;
+    return 1;
+  }
+
   @override
   Future<int> insertMessage(Map<String, dynamic> message) async {
+    await insertGate?.future;
+    if (insertFailure case final Object error) throw error;
     final id = rows.length + 1;
     rows.add(Message.fromMap({...message, 'id': id}));
     return id;

@@ -44,7 +44,7 @@ void main() {
   testWidgets(
     'privacy policy distinguishes local conversations from model networking',
     (tester) async {
-      await _pump(tester, ready: true);
+      await _pump(tester, ready: true, appSettings: true);
       await tester.tap(find.text(AppStrings.privacyPolicy));
       await tester.pumpAndSettle();
       final copy = tester
@@ -66,8 +66,267 @@ void main() {
       expect(copy, contains('search text'));
       expect(copy, isNot(contains('No data is transmitted to any server')));
       expect(copy, contains('No cloud inference'));
+      expect(copy, isNot(contains('support@vitalis.app')));
     },
   );
+  testWidgets(
+    'app Settings hides controls that would edit the current conversation',
+    (tester) async {
+      final fixture = await _pump(tester, ready: true, appSettings: true);
+      expect(find.text(AppStrings.appearance), findsOneWidget);
+      expect(find.text(AppStrings.privacy), findsOneWidget);
+      expect(find.text('System prompt'), findsNothing);
+      expect(find.byType(Slider), findsNothing);
+      expect(find.text('Thinking mode'), findsNothing);
+      expect(fixture.chat.updates, 0);
+    },
+  );
+
+  testWidgets('chat Settings excludes app preferences and global model reset', (
+    tester,
+  ) async {
+    await _pump(tester, ready: true);
+    expect(find.text('Chat settings'), findsOneWidget);
+    expect(find.text('System prompt'), findsOneWidget);
+    expect(find.text(AppStrings.appearance), findsNothing);
+    expect(find.text(AppStrings.privacy), findsNothing);
+    expect(find.text('Import local GGUF model'), findsNothing);
+    expect(find.text(AppStrings.resetModelButton), findsNothing);
+  });
+
+  testWidgets(
+    'changing model cannot borrow the previous template thinking capability',
+    (tester) async {
+      final fixture = await _pump(tester, ready: true);
+      final finder = find.widgetWithText(SwitchListTile, 'Thinking mode');
+      expect(tester.widget<SwitchListTile>(finder).onChanged, isNotNull);
+      final pending = Completer<ModelDescriptor?>();
+      fixture.registry.lookupGate = pending;
+      fixture.chat.value = fixture.chat.value.copyWith(
+        modelId: 'unverified-template',
+      );
+      fixture.chat.notifyListeners();
+      await tester.pump();
+      expect(tester.widget<SwitchListTile>(finder).onChanged, isNull);
+      pending.complete(
+        const ModelDescriptor(
+          id: 'unverified-template',
+          displayName: 'Unknown template',
+          source: 'imported',
+          compatibilityStatus: 'unknown',
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.widget<SwitchListTile>(finder).onChanged, isNull);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'chat Settings without a selected conversation cannot edit defaults',
+    (tester) async {
+      final fixture = await _pump(tester, ready: true);
+      fixture.chat.selectedChat = null;
+      fixture.chat.notifyListeners();
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Choose a conversation to edit its settings.'),
+        findsOneWidget,
+      );
+      expect(find.text('System prompt'), findsNothing);
+      expect(find.byType(Slider), findsNothing);
+      expect(fixture.chat.updates, 0);
+    },
+  );
+
+  testWidgets(
+    'chat Settings supports narrow large-text layouts without truncating metadata',
+    (tester) async {
+      await _pump(
+        tester,
+        ready: true,
+        viewSize: const Size(320, 1800),
+        textScale: 2,
+      );
+      expect(find.text(_model.displayName), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final entry in <String, ModelSettings Function(ModelSettings)>{
+    'output above the legacy ceiling': (value) =>
+        value.copyWith(maxTokens: 8192),
+    'short output request': (value) => value.copyWith(maxTokens: 1),
+    'temperature above the legacy ceiling': (value) =>
+        value.copyWith(temperature: 3),
+    'top-k above the legacy ceiling': (value) => value.copyWith(topK: 256),
+    'unrestricted top-k': (value) => value.copyWith(topK: 0),
+  }.entries) {
+    testWidgets('stored ${entry.key} remains visible and editable', (
+      tester,
+    ) async {
+      final fixture = await _pump(tester, ready: true);
+      final stored = entry.value(fixture.chat.value);
+      fixture.chat.value = stored;
+      fixture.chat.notifyListeners();
+      await tester.pumpAndSettle();
+      expect(find.text(AppStrings.somethingWentWrong), findsNothing);
+      expect(find.text('System prompt'), findsOneWidget);
+      expect(fixture.chat.settings, same(stored));
+      expect(fixture.chat.updates, 0);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets(
+    'numeric editor retains rejected input then commits only the selected setting',
+    (tester) async {
+      final fixture = await _pump(tester, ready: true);
+      await tester.tap(
+        find.widgetWithText(ListTile, AppStrings.maxTokensLabel),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), '0');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Enter a whole number greater than zero.'),
+        findsOneWidget,
+      );
+      expect(fixture.chat.saveAttempts, 0);
+      await tester.enterText(find.byType(TextField), '8192');
+      fixture.chat.value = fixture.chat.value.copyWith(topP: 0.5);
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(fixture.chat.settings.maxTokens, 8192);
+      expect(fixture.chat.settings.topP, 0.5);
+      expect(fixture.chat.updates, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'numeric presets only fill a draft and Cancel preserves saved values',
+    (tester) async {
+      final fixture = await _pump(tester, ready: true);
+      final original = fixture.chat.settings;
+      await tester.tap(
+        find.widgetWithText(ListTile, AppStrings.maxTokensLabel),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ActionChip, '4096'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        '4096',
+      );
+      expect(fixture.chat.saveAttempts, 0);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+      expect(fixture.chat.settings, same(original));
+    },
+  );
+
+  testWidgets('numeric save failure keeps the draft for a redacted retry', (
+    tester,
+  ) async {
+    final fixture = await _pump(tester, ready: true);
+    fixture.chat.saveFailure = StateError('/private/token=secret');
+    await tester.tap(
+      find.widgetWithText(ListTile, AppStrings.temperatureLabel),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '3');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('The change could not be saved. Your draft is retained.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('/private'), findsNothing);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      '3',
+    );
+    fixture.chat.saveFailure = null;
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(fixture.chat.settings.temperature, 3);
+    expect(fixture.chat.updates, 1);
+  });
+
+  testWidgets('an old numeric editor cannot save into a different chat', (
+    tester,
+  ) async {
+    final fixture = await _pump(tester, ready: true);
+    await tester.tap(find.widgetWithText(ListTile, AppStrings.topKLabel));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), '256');
+    fixture.chat.selectedChat = Chat(
+      id: 2,
+      title: 'Different fixture',
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+    );
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    expect(fixture.chat.saveAttempts, 0);
+    expect(
+      tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      '256',
+    );
+    expect(
+      find.text('The change could not be saved. Your draft is retained.'),
+      findsOneWidget,
+    );
+  });
+
+  for (final label in [AppStrings.topKLabel, 'System prompt']) {
+    testWidgets(
+      'a stale $label action cannot open an editor for a newly selected chat',
+      (tester) async {
+        final fixture = await _pump(tester, ready: true);
+        final open = tester
+            .widget<ListTile>(find.widgetWithText(ListTile, label))
+            .onTap!;
+        fixture.chat.selectedChat = Chat(
+          id: 2,
+          title: 'Different fixture',
+          createdAt: DateTime(2026),
+          updatedAt: DateTime(2026),
+        );
+        open();
+        await tester.pumpAndSettle();
+        expect(find.byType(AlertDialog), findsNothing);
+        expect(fixture.chat.saveAttempts, 0);
+      },
+    );
+  }
+
+  testWidgets(
+    'invalid stored probability shows corrective guidance without discarding it',
+    (tester) async {
+      final fixture = await _pump(tester, ready: true);
+      fixture.chat.value = fixture.chat.value.copyWith(topP: 1.2);
+      fixture.chat.notifyListeners();
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Enter a probability from zero to one.'),
+        findsOneWidget,
+      );
+      expect(fixture.chat.settings.topP, 1.2);
+      expect(fixture.chat.saveAttempts, 0);
+      expect(
+        tester
+            .widget<ListTile>(
+              find.widgetWithText(ListTile, AppStrings.topPLabel),
+            )
+            .onTap,
+        isNotNull,
+      );
+    },
+  );
+
   _registerDialogRecoveryCases();
   _registerSettingsMutationCases();
   _registerAutoResetCases();
@@ -80,7 +339,25 @@ void main() {
     (tester) async {
       final fixture = await _pump(tester, ready: false, advanced: true);
       final sliders = tester.widgetList<Slider>(find.byType(Slider)).toList();
-      expect(sliders.length, greaterThan(4));
+      expect(sliders, hasLength(3));
+      for (final label in [
+        'Context tokens',
+        'CPU threads',
+        'Prompt batch size',
+      ]) {
+        expect(find.text(label), findsOneWidget);
+      }
+      for (final label in [
+        AppStrings.temperatureLabel,
+        AppStrings.topPLabel,
+        AppStrings.topKLabel,
+        AppStrings.maxTokensLabel,
+      ]) {
+        expect(
+          tester.widget<ListTile>(find.widgetWithText(ListTile, label)).onTap,
+          isNull,
+        );
+      }
       for (final slider in sliders) {
         expect(slider.onChanged, isNull);
         expect(slider.onChangeEnd, isNull);
@@ -119,6 +396,8 @@ void main() {
     for (final slider in tester.widgetList<Slider>(find.byType(Slider))) {
       expect(slider.onChanged, isNull);
     }
+    expect(find.text('Import local GGUF model'), findsNothing);
+    final app = await _pump(tester, ready: false, appSettings: true);
     expect(
       tester
           .widget<ListTile>(
@@ -127,13 +406,14 @@ void main() {
           .onTap,
       isNotNull,
     );
+    expect(app.chat.updates, 0);
     expect(fixture.chat.updates, 0);
   });
 
   testWidgets('Settings import never activates or assigns the new model', (
     tester,
   ) async {
-    final fixture = await _pump(tester, ready: true);
+    final fixture = await _pump(tester, ready: true, appSettings: true);
     await tester.tap(find.text('Import local GGUF model'));
     await tester.pumpAndSettle();
     expect(fixture.registry.imports, 1);
@@ -146,7 +426,7 @@ void main() {
   testWidgets('Settings import errors do not display private exception text', (
     tester,
   ) async {
-    final fixture = await _pump(tester, ready: false);
+    final fixture = await _pump(tester, ready: false, appSettings: true);
     fixture.registry.failure = StateError(
       '/private/personal-model token=secret',
     );
@@ -165,7 +445,7 @@ void main() {
   testWidgets('Settings rejects repeated import while the picker is pending', (
     tester,
   ) async {
-    final fixture = await _pump(tester, ready: false);
+    final fixture = await _pump(tester, ready: false, appSettings: true);
     final pending = Completer<ModelDescriptor?>();
     fixture.registry.pending = pending;
     final action = tester
@@ -195,14 +475,17 @@ Future<({_Registry registry, _Chat chat})> _pump(
   WidgetTester tester, {
   required bool ready,
   bool advanced = false,
+  bool appSettings = false,
   StartupAccessGuard? access,
   ModelWarmupService? runtime,
   ThemeProvider? appearance,
   ModelDownloadService? transfers,
   SelectedModelReadiness? readiness,
   AppLogger? logging,
+  Size? viewSize,
+  double textScale = 1,
 }) async {
-  tester.view.physicalSize = const Size(1100, 2600);
+  tester.view.physicalSize = viewSize ?? const Size(1100, 2600);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
@@ -219,7 +502,13 @@ Future<({_Registry registry, _Chat chat})> _pump(
         ),
       );
   final registry = _Registry();
-  final chat = _Chat(guard);
+  final chat = _Chat(guard)
+    ..selectedChat = Chat(
+      id: 1,
+      title: 'Fixture chat',
+      createdAt: DateTime(2026),
+      updatedAt: DateTime(2026),
+    );
   if (advanced)
     chat.value = chat.value.copyWith(tuningMode: TuningMode.advanced);
   final warmup = runtime ?? _Warmup();
@@ -242,12 +531,23 @@ Future<({_Registry registry, _Chat chat})> _pump(
             value: readiness,
           ),
         Provider<ModelRegistryService>.value(value: registry),
-        ChangeNotifierProvider<ChatProvider>.value(value: chat),
+        if (!appSettings)
+          ChangeNotifierProvider<ChatProvider>.value(value: chat),
         ChangeNotifierProvider<ThemeProvider>.value(value: theme),
         ChangeNotifierProvider<ModelDownloadService>.value(value: downloads),
         ChangeNotifierProvider<ModelWarmupService>.value(value: warmup),
       ],
-      child: MaterialApp(home: SettingsScreen(logger: logging)),
+      child: MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          child: child!,
+        ),
+        home: appSettings
+            ? SettingsScreen(logger: logging)
+            : SettingsScreen.chat(logger: logging),
+      ),
     ),
   );
   await tester.pumpAndSettle();
@@ -280,9 +580,11 @@ final class _Registry extends ModelRegistryService {
   int activations = 0;
   Object? failure;
   Completer<ModelDescriptor?>? pending;
+  Completer<ModelDescriptor?>? lookupGate;
 
   @override
-  Future<ModelDescriptor?> findById(String id) async => _model;
+  Future<ModelDescriptor?> findById(String id) async =>
+      lookupGate == null ? _model : lookupGate!.future;
 
   @override
   Future<ModelDescriptor?> importGguf() async {

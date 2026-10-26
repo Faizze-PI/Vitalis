@@ -593,7 +593,12 @@ class _DelayedRegistry implements ModelRegistryService {
 class _SelectionDatabase implements DatabaseHelper {
   int createdChats = 0;
   @override
-  Future<int> insertChat(Map<String, dynamic> chat) async {
+  Future<int> insertChatWithModel(
+    Map<String, dynamic> chat,
+    String modelId, {
+    void Function()? beforeCommit,
+  }) async {
+    beforeCommit?.call();
     createdChats++;
     return 4;
   }
@@ -682,9 +687,13 @@ class _DelayedCreateDatabase extends _SelectionDatabase {
   final entered = Completer<void>();
   final finish = Completer<void>();
   @override
-  Future<int> insertChat(Map<String, dynamic> chat) async {
+  Future<int> insertChatWithModel(
+    Map<String, dynamic> chat,
+    String modelId, {
+    void Function()? beforeCommit,
+  }) async {
     entered.complete();
     await finish.future;
-    return super.insertChat(chat);
+    return super.insertChatWithModel(chat, modelId, beforeCommit: beforeCommit);
   }
 }

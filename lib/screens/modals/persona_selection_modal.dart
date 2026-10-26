@@ -10,7 +10,8 @@ import '../../widgets/startup_mutation_access.dart';
 import '../../widgets/saved_text_preview.dart';
 
 class PersonaSelectionModal extends StatefulWidget {
-  const PersonaSelectionModal({super.key});
+  const PersonaSelectionModal({super.key, this.selectionEnabled = true});
+  final bool selectionEnabled;
 
   @override
   State<PersonaSelectionModal> createState() => _PersonaSelectionModalState();
@@ -50,7 +51,7 @@ class _PersonaSelectionModalState extends State<PersonaSelectionModal> {
 
   void _showCreateDialog() {
     final navigator = Navigator.of(context);
-    Navigator.pop(context);
+    if (widget.selectionEnabled) Navigator.pop(context);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       showDialog(
         context: navigator.context,
@@ -74,9 +75,11 @@ class _PersonaSelectionModalState extends State<PersonaSelectionModal> {
                 children: [
                   Semantics(
                     header: true,
-                    child: const Text(
-                      AppStrings.selectPersona,
-                      style: TextStyle(
+                    child: Text(
+                      widget.selectionEnabled
+                          ? AppStrings.selectPersona
+                          : 'Personas',
+                      style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -94,16 +97,17 @@ class _PersonaSelectionModalState extends State<PersonaSelectionModal> {
                   if (personaProvider.isLoading)
                     const Center(child: CircularProgressIndicator())
                   else ...[
-                    Semantics(
-                      label: AppStrings.personaNone,
-                      button: true,
-                      child: ListTile(
-                        leading: const Icon(Icons.clear),
-                        title: const Text(AppStrings.personaNone),
-                        enabled: canEdit,
-                        onTap: canEdit ? _removePersona : null,
+                    if (widget.selectionEnabled)
+                      Semantics(
+                        label: AppStrings.personaNone,
+                        button: true,
+                        child: ListTile(
+                          leading: const Icon(Icons.clear),
+                          title: const Text(AppStrings.personaNone),
+                          enabled: canEdit,
+                          onTap: canEdit ? _removePersona : null,
+                        ),
                       ),
-                    ),
                     Flexible(
                       child: ListView(
                         shrinkWrap: true,
@@ -111,7 +115,7 @@ class _PersonaSelectionModalState extends State<PersonaSelectionModal> {
                           ...personaProvider.personas.map(
                             (persona) => Semantics(
                               label:
-                                  '${canMutate ? AppStrings.selectPersona : 'View persona'}: ${persona.name}',
+                                  '${canMutate && widget.selectionEnabled ? AppStrings.selectPersona : 'View persona'}: ${persona.name}',
                               button: true,
                               child: ListTile(
                                 leading: const Icon(Icons.person),
@@ -170,7 +174,7 @@ class _PersonaSelectionModalState extends State<PersonaSelectionModal> {
                                 ),
                                 onTap: _saving
                                     ? null
-                                    : canMutate
+                                    : canMutate && widget.selectionEnabled
                                     ? () => _selectPersona(persona)
                                     : () => showSavedTextPreview(
                                         context,

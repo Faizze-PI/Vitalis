@@ -26,6 +26,7 @@ void _registerModelResetCases() {
       if (scenario == 'busy') transfers.failure = InferenceRuntimeBusy();
       await _pump(
         tester,
+        appSettings: true,
         ready: true,
         transfers: transfers,
         readiness: readiness,
@@ -60,6 +61,7 @@ void _registerModelResetCases() {
       final transfers = _ResetTransfers()..pending = Completer<void>();
       await _pump(
         tester,
+        appSettings: true,
         ready: true,
         transfers: transfers,
         readiness: readiness,
@@ -81,7 +83,7 @@ void _registerModelResetCases() {
     tester,
   ) async {
     final transfers = _ResetTransfers();
-    await _pump(tester, ready: true, transfers: transfers);
+    await _pump(tester, appSettings: true, ready: true, transfers: transfers);
     final action = await _modelResetAction(tester);
     action();
     action();
@@ -99,6 +101,7 @@ void _registerModelResetCases() {
     final transfers = _ResetTransfers();
     await _pump(
       tester,
+      appSettings: true,
       ready: true,
       transfers: transfers,
       access: StartupAccessGuard(() => _dialogCapabilities(ready)),
@@ -117,7 +120,7 @@ void _registerModelResetCases() {
   ) async {
     final transfers = _ResetTransfers()
       ..failure = StateError('/private/model token=secret');
-    await _pump(tester, ready: true, transfers: transfers);
+    await _pump(tester, appSettings: true, ready: true, transfers: transfers);
     (await _modelResetAction(tester))();
     await tester.pumpAndSettle();
     await tester.tap(find.text(AppStrings.confirm));
@@ -135,7 +138,7 @@ void _registerModelResetCases() {
     tester,
   ) async {
     final transfers = _ResetTransfers();
-    await _pump(tester, ready: true, transfers: transfers);
+    await _pump(tester, appSettings: true, ready: true, transfers: transfers);
     final action = await _modelResetAction(tester);
     await tester.pumpWidget(const SizedBox());
     action();

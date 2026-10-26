@@ -52,6 +52,7 @@ class ChatProvider extends ChangeNotifier {
   // Weak metadata follows each saved message, not save-completion order.
   final _responseFrameIdentities = Expando<Object>();
   bool _isLoading = false;
+  bool _hasHistoryError = false;
   bool _hasError = false;
   String _errorMessage = '';
   ModelSettings _settings = ModelSettings();
@@ -121,6 +122,7 @@ class ChatProvider extends ChangeNotifier {
       ? _responseFrameIdentities[message]
       : null;
   bool get isLoading => _isLoading;
+  bool get hasHistoryError => _hasHistoryError;
   bool get hasError => _hasError;
   String get errorMessage => _errorMessage;
   ModelSettings get settings => _settings;
@@ -247,11 +249,13 @@ class ChatProvider extends ChangeNotifier {
 
   Future<void> loadChats() async {
     _requireAccess(StartupAccessOperation.browse);
+    _hasHistoryError = false;
     _isLoading = true;
     notifyListeners();
     try {
       _chats = await _db.getChats();
     } catch (e) {
+      _hasHistoryError = true;
       _logger.error('Failed to load chats (${e.runtimeType})');
       _chats = [];
       _setError('Failed to load chats');
@@ -262,6 +266,7 @@ class ChatProvider extends ChangeNotifier {
 
   Future<Chat?> createChat({String? title}) async {
     _requireAccess(StartupAccessOperation.mutateContent);
+    final modelId = _settings.modelId;
     final epoch = ++_selectionEpoch;
     _generation?.abandonResponseFrameObservation();
     final now = DateTime.now();
@@ -274,14 +279,18 @@ class ChatProvider extends ChangeNotifier {
       if (_generation?.isSending == true) await _generation!.stopSending();
       if (_isDisposed || epoch != _selectionEpoch) return null;
       _requireAccess(StartupAccessOperation.mutateContent);
-      final id = await _db.insertChat(chat.toMap());
+      final id = await _db.insertChatWithModel(
+        chat.toMap(),
+        modelId,
+        beforeCommit: () =>
+            _requireAccess(StartupAccessOperation.mutateContent),
+      );
       if (_isDisposed || epoch != _selectionEpoch) return chat.copyWith(id: id);
-      _modelReadiness?.invalidate();
       _currentChat = chat.copyWith(id: id);
       _messages = [];
       _attachedNotes = [];
       _currentPersona = null;
-      _settings = ModelSettings();
+      _settings = ModelSettings(modelId: modelId);
       _committedSettings = _settings;
       _settingsRevision++;
       _hasOlderMessages = false;
@@ -505,36 +514,53 @@ class ChatProvider extends ChangeNotifier {
   }
 
   Future<void> sendMessage(String content) async {
+    await submitMessage(content);
+  }
+
+  /// True means the user message is stored, even if generation later fails.
+  /// A composer may restore an unsaved draft only when this returns false.
+  Future<bool> submitMessage(String content) async {
     _requireAccess(StartupAccessOperation.inference);
-    if (content.trim().isEmpty) return;
+    if (content.trim().isEmpty) return false;
     if (exceedsUtf8Bytes(content, AppConstants.maxStoredTextBytes)) {
       _setError('Message is larger than the 1 MiB storage safety limit');
-      return;
+      return false;
     }
     if (_currentChat == null) {
       _setError('No active chat');
-      return;
+      return false;
     }
     if (_generation?.isSending == true) {
       _setError('Already generating a response');
-      return;
+      return false;
     }
     _hasError = false;
     final chatId = _currentChat!.id!;
+    final selectionEpoch = _selectionEpoch;
+    bool ownsView() =>
+        !_isDisposed &&
+        selectionEpoch == _selectionEpoch &&
+        _currentChat?.id == chatId;
     final userMessage = Message(
       chatId: chatId,
       role: MessageRole.user,
       content: content,
     );
+    var persisted = false;
     try {
       final msgId = await _db.insertMessage(userMessage.toMap());
+      persisted = true;
+      if (!ownsView()) return true;
       _messages.add(userMessage.copyWith(id: msgId));
       notifyListeners();
       await _startGeneration();
+      return true;
     } catch (e) {
       _logger.error('Error sending message (${e.runtimeType})');
+      if (!ownsView()) return persisted;
       _setError('Failed to send message');
       notifyListeners();
+      return persisted;
     }
   }
 

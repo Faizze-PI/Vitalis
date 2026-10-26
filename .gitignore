@@ -54,6 +54,3 @@ third_party/llm_llamacpp/windows/flutter/
 # OS Metadata
 .DS_Store
 Thumbs.db
-
-# Public source preview: copy the inactive CI example locally for policy checks.
-/.github/workflows/ci.yml

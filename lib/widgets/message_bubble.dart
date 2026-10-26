@@ -1,176 +1,137 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import '../models/message.dart';
-import '../constants/app_colors.dart';
 import '../constants/app_metrics.dart';
 import '../constants/app_strings.dart';
 import '../utils/date_formatter.dart';
 
 class MessageBubble extends StatelessWidget {
+  const MessageBubble({super.key, required this.message, this.onRetry});
   final Message message;
   final VoidCallback? onRetry;
 
-  const MessageBubble({super.key, required this.message, this.onRetry});
+  Future<void> _copy(BuildContext context) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: message.content));
+      if (context.mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text(AppStrings.messageCopied)));
+    } catch (_) {
+      if (context.mounted)
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Message could not be copied. Please retry.'),
+          ),
+        );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == MessageRole.user;
     final theme = Theme.of(context);
-
+    final colors = theme.colorScheme;
+    final foreground = message.isError
+        ? colors.onErrorContainer
+        : colors.onSurface;
+    final style = theme.textTheme.bodyLarge?.copyWith(color: foreground);
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppMetrics.spaceSm),
-      child: Row(
-        mainAxisAlignment: isUser
-            ? MainAxisAlignment.end
-            : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (!isUser)
-            Semantics(
-              label: AppStrings.assistantResponse,
-              image: true,
-              child: CircleAvatar(
-                radius: AppMetrics.avatarRadius,
-                backgroundColor: message.isError
-                    ? AppColors.healthRed.withValues(alpha: 0.2)
-                    : null,
-                child: Icon(
-                  message.isError ? Icons.error_outline : Icons.smart_toy,
-                  size: AppMetrics.iconSizeMd,
-                  color: message.isError ? AppColors.healthRed : null,
-                ),
-              ),
-            ),
-          if (!isUser) const SizedBox(width: AppMetrics.spaceXs),
-          Flexible(
-            child: Semantics(
-              label: isUser
-                  ? '${AppStrings.userMessage}: ${message.content}'
-                  : '${AppStrings.assistantResponse}: ${message.content}',
-              // The label already includes the complete message. Excluding
-              // descendants prevents TalkBack/UIAutomator from announcing the
-              // same reply once for the label and again for Markdown content.
-              excludeSemantics: true,
-              child: GestureDetector(
-                onLongPress: () {
-                  Clipboard.setData(ClipboardData(text: message.content));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(AppStrings.messageCopied),
-                      duration: Duration(seconds: 2),
-                    ),
-                  );
+      padding: const EdgeInsets.only(bottom: AppMetrics.spaceLg),
+      child: Align(
+        alignment: isUser
+            ? AlignmentDirectional.centerEnd
+            : AlignmentDirectional.centerStart,
+        child: FractionallySizedBox(
+          widthFactor: isUser ? 0.88 : 1,
+          child: Column(
+            crossAxisAlignment: isUser
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
+            children: [
+              Semantics(
+                label: isUser
+                    ? '${AppStrings.userMessage}: ${message.content}'
+                    : '${AppStrings.assistantResponse}: ${message.content}',
+                hint: DateFormatter.formatRelative(message.timestamp),
+                excludeSemantics: true,
+                customSemanticsActions: {
+                  const CustomSemanticsAction(label: 'Copy message'): () =>
+                      _copy(context),
                 },
-                child: Column(
-                  crossAxisAlignment: isUser
-                      ? CrossAxisAlignment.end
-                      : CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(AppMetrics.spaceSm),
-                      decoration: BoxDecoration(
-                        color: message.isError
-                            ? AppColors.errorLight
-                            : isUser
-                            ? AppColors.userBubble
-                            : theme.brightness == Brightness.dark
-                            ? AppColors.assistantBubbleDark
-                            : AppColors.assistantBubbleLight,
-                        borderRadius: BorderRadius.only(
-                          topLeft: const Radius.circular(
-                            AppMetrics.bubbleRadius,
+                child: GestureDetector(
+                  onLongPress: () => _copy(context),
+                  child: Container(
+                    padding: isUser || message.isError
+                        ? const EdgeInsets.symmetric(
+                            horizontal: AppMetrics.spaceMd,
+                            vertical: AppMetrics.spaceSm,
+                          )
+                        : const EdgeInsets.symmetric(
+                            vertical: AppMetrics.spaceXxs,
                           ),
-                          topRight: const Radius.circular(
-                            AppMetrics.bubbleRadius,
-                          ),
-                          bottomLeft: Radius.circular(
-                            isUser
-                                ? AppMetrics.bubbleRadius
-                                : AppMetrics.bubbleTightRadius,
-                          ),
-                          bottomRight: Radius.circular(
-                            isUser
-                                ? AppMetrics.bubbleTightRadius
-                                : AppMetrics.bubbleRadius,
-                          ),
-                        ),
+                    decoration: BoxDecoration(
+                      color: message.isError
+                          ? colors.errorContainer
+                          : isUser
+                          ? colors.surfaceContainerHighest
+                          : null,
+                      borderRadius: BorderRadius.circular(
+                        AppMetrics.bubbleRadius,
                       ),
-                      child: isUser
-                          ? Text(
-                              message.content,
-                              style: const TextStyle(color: AppColors.userText),
-                            )
-                          : MarkdownBody(
-                              data: message.content,
-                              styleSheet: MarkdownStyleSheet(
-                                p: TextStyle(
-                                  color: theme.brightness == Brightness.dark
-                                      ? AppColors.assistantTextDark
-                                      : AppColors.assistantTextLight,
-                                ),
-                              ),
-                            ),
                     ),
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        top: AppMetrics.spaceXxs,
-                        left: AppMetrics.spaceXxs,
-                        right: AppMetrics.spaceXxs,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Semantics(
-                            label: DateFormatter.formatRelative(
-                              message.timestamp,
-                            ),
-                            child: Text(
-                              DateFormatter.formatRelative(message.timestamp),
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey.shade500,
-                              ),
-                            ),
-                          ),
-                          if (message.isError && onRetry != null) ...[
-                            const SizedBox(width: AppMetrics.spaceXs),
-                            Semantics(
-                              label: AppStrings.retry,
-                              button: true,
-                              child: GestureDetector(
-                                onTap: onRetry,
-                                child: Text(
-                                  AppStrings.retry,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: theme.colorScheme.primary,
-                                    fontWeight: FontWeight.w600,
+                    child: isUser
+                        ? Text(message.content, style: style)
+                        : MarkdownBody(
+                            data: message.content,
+                            styleSheet: MarkdownStyleSheet.fromTheme(theme)
+                                .copyWith(
+                                  p: style,
+                                  code: theme.textTheme.bodyMedium?.copyWith(
+                                    fontFamily: 'monospace',
+                                    color: foreground,
+                                    backgroundColor:
+                                        colors.surfaceContainerHighest,
+                                  ),
+                                  codeblockDecoration: BoxDecoration(
+                                    color: colors.surfaceContainerHighest,
+                                    borderRadius: BorderRadius.circular(
+                                      AppMetrics.radiusSm,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ],
+                          ),
+                  ),
                 ),
               ),
-            ),
+              if (!isUser || message.isError)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'Copy message',
+                      onPressed: () => _copy(context),
+                      icon: const Icon(
+                        Icons.copy_outlined,
+                        size: AppMetrics.iconSizeMd,
+                      ),
+                    ),
+                    if (message.isError && onRetry != null)
+                      TextButton.icon(
+                        onPressed: onRetry,
+                        icon: const Icon(
+                          Icons.refresh,
+                          size: AppMetrics.iconSizeMd,
+                        ),
+                        label: const Text(AppStrings.retry),
+                      ),
+                  ],
+                ),
+            ],
           ),
-          if (isUser) ...[
-            const SizedBox(width: AppMetrics.spaceXs),
-            Semantics(
-              label: AppStrings.userMessage,
-              image: true,
-              child: const CircleAvatar(
-                radius: AppMetrics.avatarRadius,
-                child: Icon(Icons.person, size: AppMetrics.iconSizeMd),
-              ),
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
