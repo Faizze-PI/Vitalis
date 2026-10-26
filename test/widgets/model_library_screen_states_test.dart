@@ -18,6 +18,8 @@ const _model = HubModelSummary(
 );
 
 class _Library extends ChangeNotifier implements ModelLibraryProvider {
+  @override
+  bool get isImporting => false;
   final downloadGate = Completer<ModelDownloadJob>();
   final storedJobs = <ModelDownloadJob>[];
   final searches = <({String query, HubSort sort, String? publisher})>[];

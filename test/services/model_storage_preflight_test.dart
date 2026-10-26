@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vitalis_app/services/model_download_manager.dart';
@@ -13,7 +14,17 @@ void main() {
     'bundled': AndroidModelDownloadEnvironment().usableStorageBytes,
   };
 
-  tearDown(() => messenger.setMockMethodCallHandler(channel, null));
+  const paths = MethodChannel('plugins.flutter.io/path_provider');
+  setUp(
+    () => messenger.setMockMethodCallHandler(paths, (call) async {
+      expect(call.method, 'getApplicationSupportDirectory');
+      return Directory.systemTemp.path;
+    }),
+  );
+  tearDown(() {
+    messenger.setMockMethodCallHandler(channel, null);
+    messenger.setMockMethodCallHandler(paths, null);
+  });
 
   for (final reader in readers.entries) {
     test(
@@ -26,7 +37,10 @@ void main() {
         });
         expect(await reader.value(), 123456);
         expect(calls.map((call) => call.method), ['allocatableBytes']);
-        expect(calls.single.arguments, isNull);
+        expect(
+          calls.single.arguments,
+          Platform.isWindows ? isA<String>() : isNull,
+        );
       },
     );
 

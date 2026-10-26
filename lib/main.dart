@@ -22,6 +22,7 @@ import 'services/startup_capability_source.dart';
 import 'services/application_error_reporter.dart';
 import 'app_router.dart';
 import 'database/database_helper.dart';
+import 'database/windows_database.dart';
 import 'utils/app_logger.dart';
 import 'widgets/startup_shell.dart';
 import 'widgets/vitalis_dependencies.dart';
@@ -46,6 +47,7 @@ void main() async {
 
   final startup = StartupCoordinator(
     openDatabase: () async {
+      await initializeWindowsDatabase();
       await database.database;
     },
     loadLogger: () async {

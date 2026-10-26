@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'application_private_directory.dart';
 
 import 'package:crypto/crypto.dart';
 import 'package:file_picker/file_picker.dart';
@@ -66,8 +67,7 @@ class ModelRegistryService {
        _allowedRoots = allowedRoots ?? _defaultAllowedRoots,
        _importPicker = importPicker ?? _defaultImportPicker,
        _restoreSetPicker = restoreSetPicker ?? _defaultRestoreSetPicker,
-       _documentsDirectory =
-           documentsDirectory ?? getApplicationDocumentsDirectory,
+       _documentsDirectory = documentsDirectory ?? applicationPrivateDirectory,
        _metadataReader = metadataReader ?? GgufMetadata.fromFile,
        _probeFactory = probeFactory ?? _defaultProbeFactory,
        checkProbeSafety = checkProbeSafety ?? _unknownProbeSafety,

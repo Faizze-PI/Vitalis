@@ -7,7 +7,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
+import '../services/application_private_directory.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'async_mutex.dart';
 import 'log_sanitizer.dart';
@@ -24,7 +24,7 @@ final class LogCleanupResult {
 }
 
 /// Privacy-first local logger that writes timestamped, severity-tagged entries
-/// to rotating daily files under [getApplicationDocumentsDirectory]/logs/.
+/// to rotating daily files under [applicationPrivateDirectory]/logs/.
 /// Files older than 7 days are pruned automatically.
 /// Writes are serialized through [AsyncMutex] and passed through [LogSanitizer].
 /// Regex masking cannot guarantee removal of arbitrary private content.
@@ -36,8 +36,7 @@ class AppLogger {
     Future<void> Function(bool)? privacySaver,
     DateTime Function()? clock,
     Future<bool> Function(File)? fileRemover,
-  }) : _directoryResolver =
-           directoryResolver ?? getApplicationDocumentsDirectory,
+  }) : _directoryResolver = directoryResolver ?? applicationPrivateDirectory,
        _privacyLoader = privacyLoader ?? _loadPrivacyPreference,
        _privacySaver = privacySaver ?? _savePrivacyPreference,
        _clock = clock ?? DateTime.now,

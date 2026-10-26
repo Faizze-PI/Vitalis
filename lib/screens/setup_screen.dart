@@ -199,8 +199,12 @@ class _SetupScreenState extends State<SetupScreen> {
                   ],
                   const SizedBox(height: 12),
                   TextButton.icon(
-                    onPressed: () =>
-                        Navigator.of(context).pushNamed(AppRoutes.modelLibrary),
+                    onPressed: () async {
+                      await Navigator.of(
+                        context,
+                      ).pushNamed(AppRoutes.modelLibrary);
+                      if (mounted) await _loadSettings();
+                    },
                     icon: const Icon(Icons.memory),
                     label: const Text('Open Model Library'),
                   ),

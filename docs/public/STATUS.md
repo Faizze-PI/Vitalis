@@ -10,4 +10,10 @@
 
 These are scoped checks, not production ratification. Full coverage collection failed when the test VM service disappeared; its cause remains unconfirmed. Clean-build, support-floor emulator, durable-transfer, performance and complete physical acceptance gates remain open. GitHub Actions is not enabled yet.
 
-Windows CPU preview is next. Linux and Vulkan remain deferred.
+## Windows 1.0.1 preview
+
+The official Flutter x64 runner uses the existing CPU Native Assets backend. The desktop port passed analysis, 1,402 root tests (seed 20261028), the verified-model registry/ownership test, and a release build. The actual desktop app imported and validated Qwen, retained chat/model state across restart, and completed a local greeting. Import progress and first-chat navigation have focused regressions. The complete portable folder includes SQLite and C++ runtime dependencies.
+
+This is a testing preview, not formal platform ratification. Full desktop transfer fault/integration coverage, performance characterization and cross-machine testing remain open. Windows 11 was exercised; other supported Windows configurations remain unverified. Android-specific background download guarantees do not apply to desktop foreground transfers.
+
+Linux and Vulkan remain deferred.

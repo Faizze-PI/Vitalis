@@ -152,6 +152,9 @@ class ModelLibraryProvider extends ChangeNotifier {
   final SelectedModelReadiness? _selectedModel;
   final PlatformModelFolderOpener _folderOpener;
 
+  bool _importing = false;
+  bool get isImporting => _importing;
+
   ModelLibraryStatus _status = ModelLibraryStatus.idle;
   List<HubModelSummary> _results = const [];
   List<ModelDescriptor> _installed = const [];
@@ -460,12 +463,18 @@ class ModelLibraryProvider extends ChangeNotifier {
 
   Future<ModelDescriptor?> importLocal() async {
     _requireActive();
-    final model = await _registry.importGguf();
-    if (_disposed) return model;
-    await _refreshInstalledModels();
-    if (_disposed) return model;
+    if (_importing) throw InferenceRuntimeBusy();
+    _importing = true;
     notifyListeners();
-    return model;
+    try {
+      final model = await _registry.importGguf();
+      if (_disposed) return model;
+      await _refreshInstalledModels();
+      return model;
+    } finally {
+      _importing = false;
+      if (!_disposed) notifyListeners();
+    }
   }
 
   Future<void> openModelFolder() {

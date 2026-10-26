@@ -4,6 +4,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
 import 'package:llm_llamacpp/llm_llamacpp.dart';
 import 'package:vitalis_app/screens/model_library_screen.dart';
+import 'package:vitalis_app/providers/chat_provider.dart';
+import 'package:vitalis_app/models/chat.dart';
+import 'package:vitalis_app/app_router.dart';
 import 'package:vitalis_app/models/model_descriptor.dart';
 import 'package:vitalis_app/providers/model_library_provider.dart';
 import 'package:vitalis_app/services/model_recovery_controller.dart';
@@ -24,6 +27,132 @@ const model = ModelDescriptor(
   compatibilityStatus: 'compatible',
 );
 void main() {
+  test('failed import clears busy state and permits retry', () async {
+    final gate = _CompletionGate();
+    final library = ModelLibraryProvider(
+      hub: _Hub(),
+      registry: _GatedRegistry(gate),
+      downloads: _WorkingDownloads(),
+    );
+    addTearDown(library.dispose);
+    final operation = library.importLocal();
+    await gate.entered.future;
+    expect(library.isImporting, isTrue);
+    final observed = expectLater(operation, throwsStateError);
+    gate.release.completeError(StateError('fixture import failed'));
+    await observed;
+    expect(library.isImporting, isFalse);
+  });
+
+  testWidgets('import progress remains visible and prevents a second picker', (
+    tester,
+  ) async {
+    final gate = _CompletionGate();
+    final library = ModelLibraryProvider(
+      hub: _Hub(),
+      registry: _GatedRegistry(gate),
+      downloads: _WorkingDownloads(),
+    );
+    addTearDown(library.dispose);
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: library,
+        child: const MaterialApp(home: ModelLibraryScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Installed'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Import Local GGUF'));
+    await tester.pump();
+    await gate.entered.future;
+    expect(find.text('Importing and checking model…'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Import Local GGUF'),
+          )
+          .onPressed,
+      isNull,
+    );
+    gate.release.complete();
+    await tester.pumpAndSettle();
+    expect(find.text('Importing and checking model…'), findsNothing);
+  });
+  testWidgets('starting the first model chat opens the conversation', (
+    tester,
+  ) async {
+    final registry = _Registry()
+      ..models = [
+        const ModelDescriptor(
+          id: 'installed',
+          displayName: 'Installed fixture',
+          source: 'local_import',
+          localPath: 'fixture.gguf',
+          sha256:
+              '1111111111111111111111111111111111111111111111111111111111111111',
+          compatibilityStatus: 'compatible',
+          installationState: 'installed',
+        ),
+      ];
+    final library = ModelLibraryProvider(
+      hub: _Hub(),
+      registry: registry,
+      downloads: _WorkingDownloads(),
+    );
+    final chat = _FirstChat();
+    addTearDown(library.dispose);
+    addTearDown(chat.dispose);
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: library),
+          ChangeNotifierProvider<ChatProvider>.value(value: chat),
+        ],
+        child: MaterialApp(
+          home: const ModelLibraryScreen(),
+          routes: {
+            AppRoutes.chat: (_) =>
+                const Scaffold(body: Text('Conversation opened')),
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Installed'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Model actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Start chat with this model'));
+    await tester.pumpAndSettle();
+    expect(chat.selected, 'installed');
+    expect(find.text('Conversation opened'), findsOneWidget);
+  });
+
+  test(
+    'concurrent import is rejected before opening a second picker',
+    () async {
+      final gate = _CompletionGate();
+      final library = ModelLibraryProvider(
+        hub: _Hub(),
+        registry: _GatedRegistry(gate),
+        downloads: _WorkingDownloads(),
+      );
+      addTearDown(library.dispose);
+      final first = library.importLocal();
+      await gate.entered.future;
+      try {
+        await expectLater(
+          library.importLocal(),
+          throwsA(isA<InferenceRuntimeBusy>()),
+        );
+      } finally {
+        gate.release.complete();
+        await first;
+      }
+    },
+  );
+
   test('late restoration snapshot preserves newer durable progress', () async {
     final downloads = _DelayedRestoration();
     final library = ModelLibraryProvider(
@@ -1052,4 +1181,17 @@ class _Updates implements ModelUpdateService {
       'revision': 'new-immutable',
     });
   }
+}
+
+class _FirstChat extends ChangeNotifier implements ChatProvider {
+  String? selected;
+  @override
+  Chat? get currentChat => null;
+  @override
+  Future<void> switchModel(String id) async {
+    selected = id;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

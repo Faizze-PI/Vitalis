@@ -2,13 +2,13 @@
 
 <img src="docs/branding/app-icon.png" width="96" alt="VITALIS logo">
 
-Local AI chat for Android. Download GGUF models from Hugging Face or import your own, then chat on your phone.
+Local AI chat for Android and Windows. Download GGUF models from Hugging Face or import your own, then chat on your device.
 
-[**Download APK**](https://github.com/Faizze-PI/Vitalis/releases/latest/download/VITALIS-1.0.1-arm64-v8a.apk) · [Releases](https://github.com/Faizze-PI/Vitalis/releases) · [Report a bug](https://github.com/Faizze-PI/Vitalis/issues)
+[**Android APK**](https://github.com/Faizze-PI/Vitalis/releases/latest/download/VITALIS-1.0.1-arm64-v8a.apk) · [**Windows ZIP**](https://github.com/Faizze-PI/Vitalis/releases/latest/download/VITALIS-1.0.1-windows-x64.zip) · [Releases](https://github.com/Faizze-PI/Vitalis/releases) · [Report a bug](https://github.com/Faizze-PI/Vitalis/issues)
 
-Android 9+ · arm64 · Apache-2.0
+Android 9+ arm64 · Windows x64 preview · Apache-2.0
 
-> **Preview build:** the APK uses debug signing and has [known issues](docs/public/STATUS.md). Performance and release testing are still in progress.
+> **Preview builds:** Android uses debug signing; Windows is unsigned. Both have [known issues](docs/public/STATUS.md). Performance and release testing are still in progress.
 
 ## Features
 
@@ -21,7 +21,7 @@ Android 9+ · arm64 · Apache-2.0
 
 ## Getting started
 
-1. Download and install the APK from [Releases](https://github.com/Faizze-PI/Vitalis/releases/latest).
+1. Download the Android APK or Windows ZIP from [Releases](https://github.com/Faizze-PI/Vitalis/releases/latest). On Windows, extract the complete ZIP and open `VITALIS.exe`.
 2. Open **Model Library** and download a model, or import a GGUF file.
 3. Choose **Use for this chat** to select an installed model.
 
@@ -35,7 +35,7 @@ Inference runs locally. Model search and downloads connect to Hugging Face and i
 
 ## Development
 
-Built with Flutter and Provider, with llama.cpp through Dart Native Assets. Android is available as a preview. A Windows preview is in development; Linux is deferred.
+Built with Flutter and Provider, with llama.cpp through Dart Native Assets. Android is available as a preview. Windows x64 is also available as a portable preview; Linux is deferred.
 
 - [Build and test instructions](docs/public/BUILDING.md)
 - [Known issues and test status](docs/public/STATUS.md)

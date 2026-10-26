@@ -4,10 +4,10 @@
 // 3-second cooldown prevents rapid retry abuse.
 // Retry behavior is defined by ModelLibraryPolicy and applies only to transient errors.
 import 'dart:io';
+import 'application_private_directory.dart';
 
 import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:llm_llamacpp/llm_llamacpp.dart';
 
 import '../constants/app_constants.dart';
@@ -83,7 +83,7 @@ final class AndroidModelDownloadEnvironment
   Future<void> delay(Duration duration) => Future<void>.delayed(duration);
 
   @override
-  Future<Directory> documentsDirectory() => getApplicationDocumentsDirectory();
+  Future<Directory> documentsDirectory() => applicationPrivateDirectory();
 
   @override
   Future<int?> usableStorageBytes() => queryAllocatableModelStorage();

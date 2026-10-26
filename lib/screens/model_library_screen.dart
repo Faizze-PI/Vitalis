@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../app_router.dart';
 import '../models/hub_model.dart';
 import '../models/model_descriptor.dart';
 import '../models/model_download_job.dart';
@@ -322,10 +323,16 @@ class _ModelLibraryScreenState extends State<ModelLibraryScreen>
     padding: const EdgeInsets.all(16),
     children: [
       FilledButton.tonalIcon(
-        onPressed: () => _importLocal(library),
+        onPressed: library.isImporting ? null : () => _importLocal(library),
         icon: const Icon(Icons.file_open),
         label: const Text('Import Local GGUF'),
       ),
+      if (library.isImporting) ...[
+        const LinearProgressIndicator(
+          semanticsLabel: 'Importing and checking model',
+        ),
+        const Text('Importing and checking model…'),
+      ],
       if (library.canOpenModelFolder) ...[
         const SizedBox(height: 8),
         OutlinedButton.icon(
@@ -655,7 +662,13 @@ class _ModelLibraryScreenState extends State<ModelLibraryScreen>
 
   Future<void> _useModel(ModelDescriptor model) async {
     try {
-      await context.read<ChatProvider>().switchModel(model.id);
+      final chat = context.read<ChatProvider>();
+      final startsChat = chat.currentChat == null;
+      await chat.switchModel(model.id);
+      if (mounted && startsChat) {
+        await Navigator.of(context).pushNamed(AppRoutes.chat);
+        return;
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

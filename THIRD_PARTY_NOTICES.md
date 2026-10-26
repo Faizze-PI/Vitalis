@@ -14,3 +14,5 @@ The top-level Apache-2.0 licence applies to original VITALIS application work. I
 VITALIS modifications include persistent runtime ownership/cancellation, native bridge and Native Assets packaging, template/context handling, local model validation and Android integration. Existing upstream notices remain in place.
 
 Before distributing application binaries, verify the generated dependency notices and licences for the exact locked build. This source preview is not a complete binary-distribution compliance certificate.
+
+Windows preview packages also include the SQLite runtime supplied by the locked sqflite_common_ffi package (SQLite public-domain terms and the package licence) and Microsoft Visual C++ redistributable DLLs from the installed build tools (Microsoft redistribution terms). Generated Flutter dependency notices and native upstream licences accompany the portable package.

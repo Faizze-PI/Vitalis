@@ -24,7 +24,7 @@ class AndroidRuntimeCapabilitiesProvider
 
   @override
   Future<RuntimeCapabilities> snapshot() async {
-    if (!(_isAndroid ?? Platform.isAndroid)) {
+    if (!(_isAndroid ?? (Platform.isAndroid || Platform.isWindows))) {
       return conservativeDesktopCapabilities();
     }
     try {
