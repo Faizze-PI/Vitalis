@@ -4,6 +4,12 @@ An Android app for on-device AI conversations, reusable personas, attached notes
 
 **Development preview.** The source is available for development and review. Android release qualification is still in progress; this is not a production-ready or fully ratified release.
 
+## Download for Android
+
+**[Download the Android APK (testing preview, about 94 MB)](https://github.com/Faizze-PI/Vitalis/releases/download/preview-2026-10-26/VITALIS-1.0.0-preview-20261026-android-arm64.apk)**
+
+Requires Android 9 or later and an arm64 device. Models download separately inside the app. This is a debug-signed testing build with known issues, not a production release. See the [release notes and checksum](https://github.com/Faizze-PI/Vitalis/releases/tag/preview-2026-10-26). If an update reports a signature mismatch, preserve your installation and data; do not uninstall as a workaround.
+
 ## Features
 
 - Local CPU inference using a pinned llama.cpp backend through Dart Native Assets.
