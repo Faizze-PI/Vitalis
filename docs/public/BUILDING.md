@@ -73,4 +73,3 @@ cp docs/public/ci-workflow.example.yml .github/workflows/ci.yml
 ```
 
 The active workflow path is ignored in this preview. When ready to enable GitHub Actions, authorize workflow uploads and remove that single ignore entry before committing the active workflow. The initial source import does not run another test matrix.
-
