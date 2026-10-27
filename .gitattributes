@@ -4,3 +4,7 @@ tool/*.sh text eol=lf
 /android/gradlew text eol=lf
 /android/gradlew.bat text eol=crlf
 /android/gradle/wrapper/gradle-wrapper.jar binary
+# Flutter regenerates these tracked files with LF on every host.
+/windows/flutter/generated_plugin_registrant.cc text eol=lf
+/windows/flutter/generated_plugin_registrant.h text eol=lf
+/windows/flutter/generated_plugins.cmake text eol=lf
