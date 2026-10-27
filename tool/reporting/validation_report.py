@@ -226,12 +226,14 @@ def main():
         return path.read_text(encoding='utf-8-sig') if path.exists() else ''
     report = make_report(read('machine.log'), read('metrics.jsonl'), args.root, args.source, args.run_url)
     write_reports(report, directory)
+    from core_report import write_core_report
+    core_passed = write_core_report(report, directory)
     print(json.dumps({'status': report['status'], 'tests': report['test_count'], 'counts': report['counts']}))
     import os
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as stream:
             stream.write(f"## VITALIS validation: {report['status']}\n\nPassed: {report['counts']['PASS']}; failed: {report['counts']['FAIL']}; skipped: {report['counts']['SKIP']}.\n\nDownload **VITALIS-Excel-test-report-Windows** in this run's Artifacts section for Excel, CSV, HTML and raw measurements.\n\n{report['scope']}\n")
-    return 0 if report['status'] == 'PASS' else 1
+    return 0 if report['status'] == 'PASS' and core_passed else 1
 
 
 if __name__ == '__main__':
