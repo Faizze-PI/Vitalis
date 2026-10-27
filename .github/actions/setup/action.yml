@@ -1,0 +1,65 @@
+name: Pinned VITALIS environment
+description: Select the checked-in toolchain and checkout-local caches.
+inputs:
+  flutter:
+    required: true
+    description: Flutter version from toolchain policy.
+  jdk:
+    required: true
+    description: JDK version from toolchain policy.
+runs:
+  using: composite
+  steps:
+    - name: Record source identity before setup
+      shell: bash
+      run: |
+        mkdir -p .ci-evidence
+        git rev-parse HEAD > .ci-evidence/source.txt
+    - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+      with:
+        distribution: temurin
+        java-version: ${{ inputs.jdk }}
+    - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+      with:
+        flutter-version: ${{ inputs.flutter }}
+        channel: stable
+        cache: true
+        pub-cache-path: ${{ github.workspace }}/.gate-cache/pub
+    - name: Linux build dependencies
+      if: runner.os == 'Linux'
+      shell: bash
+      run: sudo apt-get update -qq && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev libsqlite3-dev
+    - name: Configure Unix toolchain
+      if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "VITALIS_FLUTTER_SDK=$FLUTTER_ROOT" >> "$GITHUB_ENV"
+        echo "PUB_CACHE=$GITHUB_WORKSPACE/.gate-cache/pub" >> "$GITHUB_ENV"
+        echo "GRADLE_USER_HOME=$GITHUB_WORKSPACE/.gate-cache/gradle" >> "$GITHUB_ENV"
+        echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+        commit=$(node -p 'require("./third_party/llm_llamacpp/native/llama_cpp.lock.json").commit')
+        [[ "$commit" =~ ^[a-f0-9]{40}$ ]] || { echo 'Invalid native source lock' >&2; exit 2; }
+        echo "LD_LIBRARY_PATH=$GITHUB_WORKSPACE/.native-build/llama-$commit/linux-x64-cpu/bin${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
+        flutter config --jdk-dir "$JAVA_HOME" --android-sdk "$ANDROID_HOME"
+        compile=$(dart tool/verify_toolchain_policy.dart --value compileSdk)
+        ndk=$(dart tool/verify_toolchain_policy.dart --value ndk)
+        manager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+        test -x "$manager" || { echo 'Android SDK command-line tools are missing.' >&2; exit 2; }
+        "$manager" "platforms;android-$compile" "ndk;$ndk"
+    - name: Configure Windows toolchain
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        $ErrorActionPreference = 'Stop'
+        "VITALIS_FLUTTER_SDK=$env:FLUTTER_ROOT" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+        "PUB_CACHE=$env:GITHUB_WORKSPACE/.gate-cache/pub" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+        "GRADLE_USER_HOME=$env:GITHUB_WORKSPACE/.gate-cache/gradle" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+        "ANDROID_SDK_ROOT=$env:ANDROID_HOME" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+        flutter config --jdk-dir "$env:JAVA_HOME" --android-sdk "$env:ANDROID_HOME"
+        if ($LASTEXITCODE) { exit $LASTEXITCODE }
+        $policy = Get-Content tool/toolchain_policy.json -Raw | ConvertFrom-Json
+        $manager = Join-Path $env:ANDROID_HOME 'cmdline-tools/latest/bin/sdkmanager.bat'
+        if (-not (Test-Path -LiteralPath $manager)) { throw 'Android SDK command-line tools are missing.' }
+        & $manager "platforms;android-$($policy.compileSdk)" "ndk;$($policy.ndk)"
+        if ($LASTEXITCODE) { exit $LASTEXITCODE }

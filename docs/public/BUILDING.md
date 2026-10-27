@@ -47,7 +47,7 @@ The native build downloads hash-locked source archives. A first build therefore 
 
 ## Checks
 
-Use the same configured environment. Before the full test suite, restore the inactive CI example locally as described below so CI-policy checks can read it:
+Use the same configured environment and resolve locked root and vendored dependencies before running checks:
 
 ```powershell
 ./tool/run_gate.ps1 analyze
@@ -56,20 +56,6 @@ Use the same configured environment. Before the full test suite, restore the ina
 
 The POSIX equivalents use `./tool/run_gate.sh`. Model-backed native tests additionally require a hash-verified `VITALIS_TEST_MODEL` fixture; see [the product native gate](../../third_party/llm_llamacpp/test/vitalis_text_runtime_gate_test.dart). Generic upstream tests are not equivalent to the VITALIS acceptance gate.
 
-CI is included as an [inactive example](ci-workflow.example.yml). The current publication login does not have GitHub's `workflow` permission, so no active Actions workflow is uploaded. No hosted CI success is claimed.
+Active workflows are in [`.github/workflows`](../../.github/workflows). **Checks** runs on pull requests and main pushes and retains source-linked evidence and verification builds. **Full qualification** is manual and includes broader acceptance work; its Android instrumentation requires a compatible self-hosted arm64 runner labelled `vitalis-arm64-emulator`.
 
-For local CI-policy checks, first create `.github/workflows/ci.yml` from that example:
-
-```powershell
-New-Item -ItemType Directory -Force .github/workflows | Out-Null
-Copy-Item docs/public/ci-workflow.example.yml .github/workflows/ci.yml
-```
-
-Or, in a POSIX shell:
-
-```sh
-mkdir -p .github/workflows
-cp docs/public/ci-workflow.example.yml .github/workflows/ci.yml
-```
-
-The active workflow path is ignored in this preview. When ready to enable GitHub Actions, authorize workflow uploads and remove that single ignore entry before committing the active workflow. The initial source import does not run another test matrix.
+Consult [actual Actions runs](https://github.com/Faizze-PI/Vitalis/actions), not workflow source, for outcomes. Passing Checks does not establish full qualification or platform ratification. The old `ci-workflow.example.yml` is a historical inactive example; do not copy it over the maintained workflow.

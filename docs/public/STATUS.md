@@ -8,7 +8,7 @@
 - Arm64 profile APK built with non-production debug signing.
 - In-place OPPO installation succeeded. Nine checked database tables matched before and after installation. Chat settings and the numeric editor opened; cancellation preserved the setting.
 
-These are scoped checks, not production ratification. Full coverage collection failed when the test VM service disappeared; its cause remains unconfirmed. Clean-build, support-floor emulator, durable-transfer, performance and complete physical acceptance gates remain open. GitHub Actions is not enabled yet.
+These are scoped checks, not production ratification. Full coverage collection failed when the test VM service disappeared; its cause remains unconfirmed. Clean-build, support-floor emulator, durable-transfer, performance and complete physical acceptance gates remain open. GitHub Actions is being introduced through [PR #5](https://github.com/Faizze-PI/Vitalis/pull/5); consult the actual runs rather than treating workflow configuration as a pass.
 
 ## Windows 1.0.1 preview
 

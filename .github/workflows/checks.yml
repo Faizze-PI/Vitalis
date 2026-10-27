@@ -1,0 +1,210 @@
+name: Checks
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: checks-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      flutter: ${{ steps.versions.outputs.flutter }}
+      jdk: ${{ steps.versions.outputs.jdk }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: versions
+        run: |
+          node -e 'const fs=require("fs"),p=JSON.parse(fs.readFileSync("tool/toolchain_policy.json")); for(const k of ["flutter","jdk"]){if(!/^\d+\.\d+\.\d+$/.test(p[k]))throw Error("Invalid toolchain policy");fs.appendFileSync(process.env.GITHUB_OUTPUT,k+"="+p[k]+"\n");}'
+  host:
+    name: Host checks (${{ matrix.os }})
+    needs: policy
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          flutter: ${{ needs.policy.outputs.flutter }}
+          jdk: ${{ needs.policy.outputs.jdk }}
+      - name: Resolve locked dependencies (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          ./tool/run_gate.sh pub get --enforce-lockfile
+          (cd third_party/llm_llamacpp && ../../tool/run_gate.sh pub get --enforce-lockfile)
+      - name: Resolve locked dependencies (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./tool/run_gate.ps1 pub get --enforce-lockfile
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Push-Location third_party/llm_llamacpp
+          try { ../../tool/run_gate.ps1 pub get --enforce-lockfile; if ($LASTEXITCODE) { exit $LASTEXITCODE } } finally { Pop-Location }
+      - name: Format, analyze and verify contracts
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-evidence
+          dart format --output=none --set-exit-if-changed lib test test_native integration_test tool third_party/llm_llamacpp/lib third_party/llm_llamacpp/test third_party/llm_llamacpp/hook 2>&1 | tee .ci-evidence/format.log
+          ./tool/run_gate.sh analyze --no-pub 2>&1 | tee .ci-evidence/analyze.log
+          (cd third_party/llm_llamacpp && ../../tool/run_gate.sh analyze --no-pub) 2>&1 | tee .ci-evidence/vendor-analyze.log
+          dart tool/verify_ci_workflow.dart
+          dart tool/test_ci_workflow.dart
+          dart run tool/verify_hardcode_register.dart
+          node tool/test_ci_acceptance.js
+      - name: Root tests (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-evidence
+          git rev-parse HEAD > .ci-evidence/source.txt
+          ./tool/run_gate.sh test --no-pub --concurrency=2 --test-randomize-ordering-seed=20261027 --reporter expanded 2>&1 | tee .ci-evidence/tests.log
+      - name: Verify Windows generated-file checkout policy
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          dart tool/test_windows_generated_eol.dart
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Root tests (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force .ci-evidence | Out-Null
+          git rev-parse HEAD | Set-Content .ci-evidence/source.txt
+          ./tool/run_gate.ps1 test --no-pub --concurrency=2 --test-randomize-ordering-seed=20261027 --reporter expanded 2>&1 | Tee-Object .ci-evidence/tests.log
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Build Android debug and profile verification APKs
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./tool/run_gate.sh build apk --debug --target-platform android-arm64 --no-pub 2>&1 | tee .ci-evidence/android-debug-build.log
+          ./tool/run_gate.sh build apk --profile --target-platform android-arm64 --no-pub 2>&1 | tee .ci-evidence/android-profile-build.log
+      - name: Build and inspect Windows portable verification package
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          ./tool/run_gate.ps1 build windows --release --no-pub 2>&1 | Tee-Object .ci-evidence/windows-build.log
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          git status --porcelain=v1 | Tee-Object .ci-evidence/windows-build-status.txt
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          git diff --stat | Tee-Object .ci-evidence/windows-build-diff-stat.txt
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          ./tool/package_windows_preview.ps1 -OutputDirectory "$env:RUNNER_TEMP/vitalis-preview" 2>&1 | Tee-Object .ci-evidence/windows-package.log
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          Copy-Item "$env:RUNNER_TEMP/vitalis-preview/bundle-inspection.json" .ci-evidence/
+      - name: Retain source-linked test and build evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: checks-${{ runner.os }}
+          path: .ci-evidence/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+      - name: Retain Android verification APKs
+        if: success() && runner.os == 'Linux'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-verification-apks
+          path: build/app/outputs/flutter-apk/*.apk
+          if-no-files-found: error
+          retention-days: 7
+      - name: Retain Windows verification ZIP
+        if: success() && runner.os == 'Windows'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-verification-zip
+          path: ${{ runner.temp }}/vitalis-preview/*.zip
+          if-no-files-found: error
+          retention-days: 7
+  native:
+    name: Immutable-model runtime
+    needs: policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          flutter: ${{ needs.policy.outputs.flutter }}
+          jdk: ${{ needs.policy.outputs.jdk }}
+      - name: Read the fixture authority
+        shell: bash
+        run: |
+          dart tool/export_bundled_model_manifest.dart > "$RUNNER_TEMP/model.json"
+          node <<'NODE'
+          const fs=require('fs'),path=require('path'),m=JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP,'model.json')));
+          for(const [k,v] of Object.entries({MODEL_PATH:path.join(process.env.GITHUB_WORKSPACE,'.ci-model-cache',m.fileName),MODEL_SHA256:m.sha256,MODEL_URL:m.url})){
+            if(typeof v!=='string'||/[\r\n]/.test(v))throw Error('Invalid fixture authority');
+            fs.appendFileSync(process.env.GITHUB_ENV,k+'='+v+'\n');
+          }
+          NODE
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .ci-model-cache
+          key: bundled-qwen-${{ env.MODEL_SHA256 }}
+      - name: Verify or fetch the immutable model
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-model-cache .ci-evidence
+          git rev-parse HEAD > .ci-evidence/source.txt
+          if ! echo "$MODEL_SHA256  $MODEL_PATH" | sha256sum --check --status; then
+            curl --fail --location --retry 4 --output "$MODEL_PATH.part" "$MODEL_URL"
+            echo "$MODEL_SHA256  $MODEL_PATH.part" | sha256sum --check
+            mv "$MODEL_PATH.part" "$MODEL_PATH"
+          fi
+          echo "$MODEL_SHA256" > .ci-evidence/model-sha256.txt
+      - name: Run product native suites without fixture skips
+        shell: bash
+        env:
+          VITALIS_TEST_MODEL: ${{ env.MODEL_PATH }}
+          VITALIS_TEST_MODEL_SHA256: ${{ env.MODEL_SHA256 }}
+        run: |
+          set -euo pipefail
+          ./tool/run_gate.sh pub get --enforce-lockfile
+          (cd third_party/llm_llamacpp && ../../tool/run_gate.sh pub get --enforce-lockfile && ../../tool/run_gate.sh test test/vitalis_text_runtime_gate_test.dart --no-pub --reporter expanded) 2>&1 | tee .ci-evidence/native-text.log
+          ./tool/run_gate.sh test test_native/model_registry_probe_test.dart --no-pub --concurrency=1 --reporter expanded 2>&1 | tee .ci-evidence/registry-ownership.log
+      - name: Retain native test evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-runtime-evidence
+          path: .ci-evidence/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+  required:
+    name: Required checks
+    if: always()
+    needs: [policy, host, native]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Reject failed, cancelled or skipped required jobs
+        env:
+          REQUIRED_RESULTS: ${{ toJSON(needs) }}
+        run: node tool/verify_ci_acceptance.js
