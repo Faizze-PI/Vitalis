@@ -76,6 +76,12 @@ jobs:
           mkdir -p .ci-evidence
           git rev-parse HEAD > .ci-evidence/source.txt
           ./tool/run_gate.sh test --no-pub --concurrency=2 --test-randomize-ordering-seed=20261027 --reporter expanded 2>&1 | tee .ci-evidence/tests.log
+      - name: Verify Windows generated-file checkout policy
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          dart tool/test_windows_generated_eol.dart
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
       - name: Root tests (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
