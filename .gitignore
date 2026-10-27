@@ -54,3 +54,8 @@ third_party/llm_llamacpp/windows/flutter/
 # OS Metadata
 .DS_Store
 Thumbs.db
+
+# Generated CI evidence and public model fixtures
+.ci-evidence/
+.ci-model-cache/
+*.iml
