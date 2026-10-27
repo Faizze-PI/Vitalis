@@ -119,6 +119,7 @@ jobs:
         with:
           name: root-test-evidence
           path: .ci-evidence/root
+          include-hidden-files: true
           if-no-files-found: error
 
   native-text-runtime:
@@ -182,6 +183,12 @@ jobs:
       - run: |
           "$GITHUB_WORKSPACE/tool/run_gate.sh" pub get
         working-directory: third_party/llm_llamacpp
+      - name: Select hash-locked native host-test libraries
+        shell: bash
+        run: |
+          commit=$(node -p 'require("./third_party/llm_llamacpp/native/llama_cpp.lock.json").commit')
+          [[ "$commit" =~ ^[a-f0-9]{40}$ ]] || { echo 'Invalid native source lock' >&2; exit 2; }
+          echo "LD_LIBRARY_PATH=$GITHUB_WORKSPACE/.native-build/llama-$commit/linux-x64-cpu/bin${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
       - name: Native text runtime gate (zero skips)
         run: |
           "$GITHUB_WORKSPACE/tool/run_gate.sh" test test/vitalis_text_runtime_gate_test.dart
@@ -234,6 +241,7 @@ jobs:
         with:
           name: native-test-evidence
           path: .ci-evidence/native
+          include-hidden-files: true
           if-no-files-found: error
 
   lifecycle-coverage:
