@@ -38,6 +38,9 @@ runs:
         echo "PUB_CACHE=$GITHUB_WORKSPACE/.gate-cache/pub" >> "$GITHUB_ENV"
         echo "GRADLE_USER_HOME=$GITHUB_WORKSPACE/.gate-cache/gradle" >> "$GITHUB_ENV"
         echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
+        commit=$(node -p 'require("./third_party/llm_llamacpp/native/llama_cpp.lock.json").commit')
+        [[ "$commit" =~ ^[a-f0-9]{40}$ ]] || { echo 'Invalid native source lock' >&2; exit 2; }
+        echo "LD_LIBRARY_PATH=$GITHUB_WORKSPACE/.native-build/llama-$commit/linux-x64-cpu/bin${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
         flutter config --jdk-dir "$JAVA_HOME" --android-sdk "$ANDROID_HOME"
         compile=$(dart tool/verify_toolchain_policy.dart --value compileSdk)
         ndk=$(dart tool/verify_toolchain_policy.dart --value ndk)

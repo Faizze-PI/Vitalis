@@ -172,11 +172,6 @@ jobs:
           VITALIS_TEST_MODEL_SHA256: ${{ env.MODEL_SHA256 }}
         run: |
           set -euo pipefail
-          # Flutter's host tester does not add code-asset directories to ld.so.
-          # Use only this hook's hash-locked output, never host system libraries.
-          commit=$(node -p 'require("./third_party/llm_llamacpp/native/llama_cpp.lock.json").commit')
-          [[ "$commit" =~ ^[a-f0-9]{40}$ ]] || { echo 'Invalid native source lock' >&2; exit 2; }
-          export LD_LIBRARY_PATH="$GITHUB_WORKSPACE/.native-build/llama-$commit/linux-x64-cpu/bin${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
           ./tool/run_gate.sh pub get --enforce-lockfile
           (cd third_party/llm_llamacpp && ../../tool/run_gate.sh pub get --enforce-lockfile && ../../tool/run_gate.sh test test/vitalis_text_runtime_gate_test.dart --no-pub --reporter expanded) 2>&1 | tee .ci-evidence/native-text.log
           ./tool/run_gate.sh test test_native/model_registry_probe_test.dart --no-pub --concurrency=1 --reporter expanded 2>&1 | tee .ci-evidence/registry-ownership.log
