@@ -97,6 +97,10 @@ jobs:
         run: |
           ./tool/run_gate.ps1 build windows --release --no-pub 2>&1 | Tee-Object .ci-evidence/windows-build.log
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          git status --porcelain=v1 | Tee-Object .ci-evidence/windows-build-status.txt
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          git diff --stat | Tee-Object .ci-evidence/windows-build-diff-stat.txt
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           ./tool/package_windows_preview.ps1 -OutputDirectory "$env:RUNNER_TEMP/vitalis-preview" 2>&1 | Tee-Object .ci-evidence/windows-package.log
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           Copy-Item "$env:RUNNER_TEMP/vitalis-preview/bundle-inspection.json" .ci-evidence/
