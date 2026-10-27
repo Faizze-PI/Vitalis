@@ -59,3 +59,5 @@ Thumbs.db
 .ci-evidence/
 .ci-model-cache/
 *.iml
+# Python report-tool bytecode is generated, never source evidence.
+**/__pycache__/

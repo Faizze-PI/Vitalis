@@ -61,7 +61,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p .ci-evidence
-          dart format --output=none --set-exit-if-changed lib test test_native integration_test tool third_party/llm_llamacpp/lib third_party/llm_llamacpp/test third_party/llm_llamacpp/hook 2>&1 | tee .ci-evidence/format.log
+          dart format --output=none --set-exit-if-changed lib test test_native test_benchmarks integration_test tool third_party/llm_llamacpp/lib third_party/llm_llamacpp/test third_party/llm_llamacpp/hook 2>&1 | tee .ci-evidence/format.log
           ./tool/run_gate.sh analyze --no-pub 2>&1 | tee .ci-evidence/analyze.log
           (cd third_party/llm_llamacpp && ../../tool/run_gate.sh analyze --no-pub) 2>&1 | tee .ci-evidence/vendor-analyze.log
           dart tool/verify_ci_workflow.dart
@@ -110,6 +110,47 @@ jobs:
           ./tool/package_windows_preview.ps1 -OutputDirectory "$env:RUNNER_TEMP/vitalis-preview" 2>&1 | Tee-Object .ci-evidence/windows-package.log
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           Copy-Item "$env:RUNNER_TEMP/vitalis-preview/bundle-inspection.json" .ci-evidence/
+      - name: Select report Python
+        if: always() && runner.os == 'Windows'
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Verify the pinned Excel reporter
+        if: always() && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          python -B -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: --require-hashes -r tool/reporting/requirements.txt
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -B -m unittest discover -s tool/reporting -p 'test_*.py'
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Run the adapted VITALIS validation programme
+        if: runner.os == 'Windows'
+        timeout-minutes: 15
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force .ci-evidence/validation | Out-Null
+          $cases = @(Get-Content -Raw tool/reporting/validation_cases.json | ConvertFrom-Json)
+          foreach ($case in $cases) { if (-not (Test-Path -LiteralPath $case)) { throw "Missing validation case: $case" } }
+          $env:VITALIS_VALIDATION_METRICS = "$env:GITHUB_WORKSPACE/.ci-evidence/validation/metrics.jsonl"
+          $testArguments = @('test') + $cases + @('--no-pub', '--machine', '--concurrency=1', '--test-randomize-ordering-seed=20261027')
+          ./tool/run_gate.ps1 -FlutterArguments $testArguments 2>&1 | Tee-Object .ci-evidence/validation/machine.log
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Generate downloadable Excel, CSV and HTML results
+        if: always() && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $source = (git rev-parse HEAD).Trim()
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python -B tool/reporting/validation_report.py --directory .ci-evidence/validation --root "$env:GITHUB_WORKSPACE" --source "$source" --run-url "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+      - name: Retain downloadable VITALIS Excel test report
+        if: always() && runner.os == 'Windows'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: VITALIS-Excel-test-report-Windows
+          path: .ci-evidence/validation/
+          if-no-files-found: error
+          retention-days: 30
       - name: Retain source-linked test and build evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
