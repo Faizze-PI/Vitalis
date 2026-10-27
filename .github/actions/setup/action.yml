@@ -10,6 +10,11 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Record source identity before setup
+      shell: bash
+      run: |
+        mkdir -p .ci-evidence
+        git rev-parse HEAD > .ci-evidence/source.txt
     - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
       with:
         distribution: temurin
@@ -36,7 +41,9 @@ runs:
         flutter config --jdk-dir "$JAVA_HOME" --android-sdk "$ANDROID_HOME"
         compile=$(dart tool/verify_toolchain_policy.dart --value compileSdk)
         ndk=$(dart tool/verify_toolchain_policy.dart --value ndk)
-        sdkmanager "platforms;android-$compile" "ndk;$ndk"
+        manager="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+        test -x "$manager" || { echo 'Android SDK command-line tools are missing.' >&2; exit 2; }
+        "$manager" "platforms;android-$compile" "ndk;$ndk"
     - name: Configure Windows toolchain
       if: runner.os == 'Windows'
       shell: pwsh
@@ -49,5 +56,7 @@ runs:
         flutter config --jdk-dir "$env:JAVA_HOME" --android-sdk "$env:ANDROID_HOME"
         if ($LASTEXITCODE) { exit $LASTEXITCODE }
         $policy = Get-Content tool/toolchain_policy.json -Raw | ConvertFrom-Json
-        sdkmanager "platforms;android-$($policy.compileSdk)" "ndk;$($policy.ndk)"
+        $manager = Join-Path $env:ANDROID_HOME 'cmdline-tools/latest/bin/sdkmanager.bat'
+        if (-not (Test-Path -LiteralPath $manager)) { throw 'Android SDK command-line tools are missing.' }
+        & $manager "platforms;android-$($policy.compileSdk)" "ndk;$($policy.ndk)"
         if ($LASTEXITCODE) { exit $LASTEXITCODE }

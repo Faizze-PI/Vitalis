@@ -13,13 +13,13 @@ These are genuine outstanding gates. No historical tickets were created and clos
 
 ## Actions
 
-Active workflow files are being prepared on the repository-foundation branch. Upload currently requires GitHub CLI's additional `workflow` authorization. Local workflow contract validation passed, including 16 rejected invalid configurations; this is not a hosted CI pass.
+Active workflow files are uploaded through [PR #5](https://github.com/Faizze-PI/Vitalis/pull/5). The [first hosted run](https://github.com/Faizze-PI/Vitalis/actions/runs/40425938582) started against workflow commit `be341d6`. That run failed because the hosted SDK command-line tools were not on PATH. The follow-up selects sdkmanager explicitly from ANDROID_HOME; consult the latest run for its outcome. Local workflow contract validation passed, including 16 rejected invalid configurations; this is not a hosted CI pass.
 
 `Checks` is intended for pull requests and main pushes. `Full qualification` remains manual and requires compatible arm64 emulator infrastructure. Do not substitute the smaller checks workflow for full ratification. Artifacts are verification outputs, never automatically published releases.
 
 ## Wiki
 
-Reviewed Wiki source is maintained under `docs/wiki`. GitHub's separate Wiki repository has not yet been initialized; prepared Markdown is not a published Wiki. Once its initial Home page exists, sync the reviewed pages through the Wiki Git repository and verify rendered links.
+Reviewed Wiki source is maintained under `docs/wiki` and published to the [GitHub Wiki](https://github.com/Faizze-PI/Vitalis/wiki). The first documentation sync is Wiki commit `577f68d`. Review and update both copies together.
 
 ## Security and maintenance
 
