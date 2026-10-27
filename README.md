@@ -38,6 +38,7 @@ Inference runs locally. Model search and downloads connect to Hugging Face and i
 Built with Flutter and Provider, with llama.cpp through Dart Native Assets. Android is available as a preview. Windows x64 is also available as a portable preview; Linux is deferred.
 
 - [Build and test instructions](docs/public/BUILDING.md)
+- [Developer handbook and complete module reference](docs/developer/README.md)
 - [Known issues and test status](docs/public/STATUS.md)
 - [Contributing](CONTRIBUTING.md)
 - [Security reports](SECURITY.md)
