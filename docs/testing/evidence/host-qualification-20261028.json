@@ -1,0 +1,694 @@
+{
+  "date": "2026-10-28",
+  "scope": "Retained same-checkpoint host coverage and Android JVM verification; no physical qualification",
+  "source": "3f0736634c34ac828510aedb754c82708400bbc3",
+  "source_equivalence_checked_against": "cf3635008773a5a14d0a4d8daf7106349c733a87",
+  "source_equivalence_paths": [
+    "lib",
+    "third_party/llm_llamacpp",
+    "test_native",
+    "tool/verify_coverage.dart",
+    "android"
+  ],
+  "root_partition_tests": 1402,
+  "normal_native_tests": 82,
+  "isolated_native_fault_tests": 9,
+  "risk_gate": {
+    "status": "PASS",
+    "required_files": 72,
+    "files": [
+      {
+        "path": "lib/services/application_error_reporter.dart",
+        "found": 10,
+        "hit": 10,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/services/response_frame_timing.dart",
+        "found": 31,
+        "hit": 31,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/widgets/response_frame_observer.dart",
+        "found": 24,
+        "hit": 24,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/widgets/startup_mutation_access.dart",
+        "found": 21,
+        "hit": 21,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/widgets/system_prompt_editor_dialog.dart",
+        "found": 7,
+        "hit": 7,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/widgets/validated_setting_editor_dialog.dart",
+        "found": 70,
+        "hit": 69,
+        "percent": 98.57142857142857,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/models/generation_setting.dart",
+        "found": 44,
+        "hit": 44,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/screens/settings_mutation_actions.dart",
+        "found": 37,
+        "hit": 35,
+        "percent": 94.5945945945946,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/models/startup_capabilities.dart",
+        "found": 13,
+        "hit": 13,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/services/startup_coordinator.dart",
+        "found": 121,
+        "hit": 116,
+        "percent": 95.86776859504133,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/services/startup_capability_source.dart",
+        "found": 6,
+        "hit": 6,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/services/model_startup_inspector.dart",
+        "found": 59,
+        "hit": 58,
+        "percent": 98.30508474576271,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/services/startup_access_guard.dart",
+        "found": 11,
+        "hit": 11,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/services/selected_model_readiness.dart",
+        "found": 49,
+        "hit": 49,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/services/model_recovery_controller.dart",
+        "found": 42,
+        "hit": 42,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/providers/model_library_provider.dart",
+        "found": 313,
+        "hit": 283,
+        "percent": 90.41533546325878,
+        "minimum": 80.0
+      },
+      {
+        "path": "lib/providers/note_provider.dart",
+        "found": 52,
+        "hit": 52,
+        "percent": 100.0,
+        "minimum": 80.0
+      },
+      {
+        "path": "lib/providers/persona_provider.dart",
+        "found": 56,
+        "hit": 56,
+        "percent": 100.0,
+        "minimum": 80.0
+      },
+      {
+        "path": "lib/providers/theme_provider.dart",
+        "found": 38,
+        "hit": 38,
+        "percent": 100.0,
+        "minimum": 80.0
+      },
+      {
+        "path": "lib/models/device_safety_policy.dart",
+        "found": 21,
+        "hit": 21,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/services/chat_state_controller.dart",
+        "found": 265,
+        "hit": 259,
+        "percent": 97.73584905660377,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/database/database_helper.dart",
+        "found": 347,
+        "hit": 331,
+        "percent": 95.38904899135447,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/database/installation_journal_schema.dart",
+        "found": 4,
+        "hit": 4,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/database/model_installation_journal.dart",
+        "found": 118,
+        "hit": 113,
+        "percent": 95.76271186440678,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/database/model_installation_projection.dart",
+        "found": 64,
+        "hit": 62,
+        "percent": 96.875,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/models/model_installation.dart",
+        "found": 20,
+        "hit": 20,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/services/model_installation_promoter.dart",
+        "found": 97,
+        "hit": 97,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/models/imported_model_file.dart",
+        "found": 1,
+        "hit": 1,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/models/restoration_artifact.dart",
+        "found": 44,
+        "hit": 41,
+        "percent": 93.18181818181819,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/services/model_shard_restorer.dart",
+        "found": 145,
+        "hit": 141,
+        "percent": 97.24137931034483,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/services/model_shard_staging.dart",
+        "found": 38,
+        "hit": 35,
+        "percent": 92.10526315789474,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/services/hardware_sentinel_service.dart",
+        "found": 111,
+        "hit": 105,
+        "percent": 94.5945945945946,
+        "minimum": 80.0
+      },
+      {
+        "path": "lib/services/memory_pressure_service.dart",
+        "found": 25,
+        "hit": 23,
+        "percent": 92.0,
+        "minimum": 80.0
+      },
+      {
+        "path": "lib/services/model_warmup_service.dart",
+        "found": 545,
+        "hit": 508,
+        "percent": 93.21100917431193,
+        "minimum": 80.0
+      },
+      {
+        "path": "lib/services/runtime_auto_tuner.dart",
+        "found": 64,
+        "hit": 62,
+        "percent": 96.875,
+        "minimum": 80.0
+      },
+      {
+        "path": "lib/services/runtime_benchmark_workload.dart",
+        "found": 33,
+        "hit": 32,
+        "percent": 96.96969696969697,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/services/runtime_profile_store.dart",
+        "found": 72,
+        "hit": 65,
+        "percent": 90.27777777777777,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/services/model_warmup_recovery.dart",
+        "found": 55,
+        "hit": 54,
+        "percent": 98.18181818181819,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/services/runtime_capabilities_provider.dart",
+        "found": 28,
+        "hit": 27,
+        "percent": 96.42857142857143,
+        "minimum": 80.0
+      },
+      {
+        "path": "lib/services/model_registry_service.dart",
+        "found": 521,
+        "hit": 481,
+        "percent": 92.32245681381957,
+        "minimum": 80.0
+      },
+      {
+        "path": "lib/services/model_verification_runtime.dart",
+        "found": 44,
+        "hit": 44,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/services/model_download_manager.dart",
+        "found": 497,
+        "hit": 436,
+        "percent": 87.72635814889335,
+        "minimum": 80.0
+      },
+      {
+        "path": "lib/services/model_download_staging.dart",
+        "found": 20,
+        "hit": 18,
+        "percent": 90.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/services/native_transfer_stop.dart",
+        "found": 104,
+        "hit": 103,
+        "percent": 99.03846153846153,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/services/model_downloader.dart",
+        "found": 176,
+        "hit": 157,
+        "percent": 89.20454545454545,
+        "minimum": 80.0
+      },
+      {
+        "path": "lib/services/model_storage_preflight.dart",
+        "found": 7,
+        "hit": 7,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/services/model_download_service.dart",
+        "found": 137,
+        "hit": 122,
+        "percent": 89.05109489051095,
+        "minimum": 80.0
+      },
+      {
+        "path": "lib/providers/chat_provider.dart",
+        "found": 473,
+        "hit": 457,
+        "percent": 96.61733615221988,
+        "minimum": 80.0
+      },
+      {
+        "path": "lib/providers/chat_settings_persistence.dart",
+        "found": 38,
+        "hit": 36,
+        "percent": 94.73684210526316,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/providers/generation_provider.dart",
+        "found": 309,
+        "hit": 297,
+        "percent": 96.11650485436893,
+        "minimum": 80.0
+      },
+      {
+        "path": "lib/providers/generation_recovery.dart",
+        "found": 41,
+        "hit": 41,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "lib/utils/app_logger.dart",
+        "found": 130,
+        "hit": 117,
+        "percent": 90.0,
+        "minimum": 80.0
+      },
+      {
+        "path": "third_party/llm_llamacpp/lib/src/runtime_session_reservation.dart",
+        "found": 92,
+        "hit": 92,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "third_party/llm_llamacpp/lib/src/runtime_initialization_guard.dart",
+        "found": 98,
+        "hit": 98,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "third_party/llm_llamacpp/lib/src/runtime_owner_recovery_guard.dart",
+        "found": 16,
+        "hit": 16,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "third_party/llm_llamacpp/lib/src/runtime_progress.dart",
+        "found": 14,
+        "hit": 14,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "third_party/llm_llamacpp/lib/src/runtime_cancellation_control.dart",
+        "found": 32,
+        "hit": 32,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "third_party/llm_llamacpp/lib/src/runtime_request_finalizer.dart",
+        "found": 24,
+        "hit": 24,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "third_party/llm_llamacpp/lib/src/runtime_cleanup_quarantine.dart",
+        "found": 19,
+        "hit": 19,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "third_party/llm_llamacpp/lib/src/runtime_watchdog_policy.dart",
+        "found": 4,
+        "hit": 4,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "third_party/llm_llamacpp/lib/src/runtime_shutdown_waiter.dart",
+        "found": 28,
+        "hit": 28,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "third_party/llm_llamacpp/lib/src/runtime_native_termination.dart",
+        "found": 53,
+        "hit": 53,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "third_party/llm_llamacpp/lib/src/gguf_metadata_reader.dart",
+        "found": 23,
+        "hit": 23,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "third_party/llm_llamacpp/lib/src/stop_sequence_prefix.dart",
+        "found": 5,
+        "hit": 5,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "third_party/llm_llamacpp/lib/src/inference_output_timing.dart",
+        "found": 10,
+        "hit": 10,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "third_party/llm_llamacpp/lib/src/native_template_applier.dart",
+        "found": 57,
+        "hit": 56,
+        "percent": 98.24561403508773,
+        "minimum": 90.0
+      },
+      {
+        "path": "third_party/llm_llamacpp/lib/src/verified_thinking_templates.dart",
+        "found": 2,
+        "hit": 2,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "third_party/llm_llamacpp/lib/src/native_runtime_bridge.dart",
+        "found": 44,
+        "hit": 42,
+        "percent": 95.45454545454545,
+        "minimum": 90.0
+      },
+      {
+        "path": "third_party/llm_llamacpp/lib/src/llamacpp_model.dart",
+        "found": 70,
+        "hit": 70,
+        "percent": 100.0,
+        "minimum": 90.0
+      },
+      {
+        "path": "third_party/llm_llamacpp/lib/src/persistent_inference_isolate.dart",
+        "found": 445,
+        "hit": 401,
+        "percent": 90.11235955056179,
+        "minimum": 90.0
+      },
+      {
+        "path": "third_party/llm_llamacpp/lib/src/inference_isolate_handler.dart",
+        "found": 375,
+        "hit": 340,
+        "percent": 90.66666666666667,
+        "minimum": 90.0
+      },
+      {
+        "path": "third_party/llm_llamacpp/lib/src/llamacpp_chat_repository.dart",
+        "found": 242,
+        "hit": 228,
+        "percent": 94.21487603305785,
+        "minimum": 90.0
+      }
+    ]
+  },
+  "measured_lines": {
+    "sources": 167,
+    "found": 13190,
+    "hit": 10218,
+    "percent": 77.4677786201668
+  },
+  "lcov_sha256": [
+    "63c5cb943ea6ca3b6516a43cda20ff0f04269d6da39198da64d2c31040de6f89",
+    "eb577632d14004634e276c4153b883da63b86a6f2ee771324d58da4b08c1c5cb",
+    "ed670c930fa208a1dd0d8e13fccd9849087f5cbcf1644b9d0ea02e87be3a7681",
+    "81ef66c813c1565725979ddb65d25177006498cc215cec3744952652fc29f733"
+  ],
+  "android_host": {
+    "status": "HOST_PASS_WITH_RECORDED_WARNINGS",
+    "tests": {
+      "tests": 155,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "suites": 16,
+    "transfer_coverage_sources": [
+      {
+        "package": "com/vitalis/vitalis_app/transfer",
+        "source": "TransferFailureCode.java",
+        "hit": 19,
+        "total": 19,
+        "percent": 100.0
+      },
+      {
+        "package": "com/vitalis/vitalis_app/transfer",
+        "source": "TransferManifestStore.java",
+        "hit": 91,
+        "total": 94,
+        "percent": 96.80851063829788
+      },
+      {
+        "package": "com/vitalis/vitalis_app/transfer",
+        "source": "TransferStopWorker.java",
+        "hit": 19,
+        "total": 19,
+        "percent": 100.0
+      },
+      {
+        "package": "com/vitalis/vitalis_app/transfer",
+        "source": "TransferWorker.java",
+        "hit": 64,
+        "total": 70,
+        "percent": 91.42857142857143
+      },
+      {
+        "package": "com/vitalis/vitalis_app/transfer",
+        "source": "TransferScheduler.java",
+        "hit": 66,
+        "total": 66,
+        "percent": 100.0
+      },
+      {
+        "package": "com/vitalis/vitalis_app/transfer",
+        "source": "TransferExecutionResult.java",
+        "hit": 10,
+        "total": 10,
+        "percent": 100.0
+      },
+      {
+        "package": "com/vitalis/vitalis_app/transfer",
+        "source": "TransferStoragePreflight.java",
+        "hit": 18,
+        "total": 18,
+        "percent": 100.0
+      },
+      {
+        "package": "com/vitalis/vitalis_app/transfer",
+        "source": "TransferController.java",
+        "hit": 195,
+        "total": 207,
+        "percent": 94.20289855072464
+      },
+      {
+        "package": "com/vitalis/vitalis_app/transfer",
+        "source": "TransferStopDisposition.java",
+        "hit": 10,
+        "total": 11,
+        "percent": 90.9090909090909
+      },
+      {
+        "package": "com/vitalis/vitalis_app/transfer",
+        "source": "TransferRunControl.java",
+        "hit": 96,
+        "total": 104,
+        "percent": 92.3076923076923
+      },
+      {
+        "package": "com/vitalis/vitalis_app/transfer",
+        "source": "TransferEngine.java",
+        "hit": 328,
+        "total": 364,
+        "percent": 90.10989010989012
+      },
+      {
+        "package": "com/vitalis/vitalis_app/transfer",
+        "source": "TransferManifest.java",
+        "hit": 147,
+        "total": 149,
+        "percent": 98.65771812080537
+      },
+      {
+        "package": "com/vitalis/vitalis_app/transfer",
+        "source": "TransferActionReceiver.java",
+        "hit": 53,
+        "total": 55,
+        "percent": 96.36363636363636
+      },
+      {
+        "package": "com/vitalis/vitalis_app/transfer",
+        "source": "TransferNotifications.java",
+        "hit": 43,
+        "total": 44,
+        "percent": 97.72727272727273
+      },
+      {
+        "package": "com/vitalis/vitalis_app/transfer",
+        "source": "TransferWriterLease.java",
+        "hit": 29,
+        "total": 31,
+        "percent": 93.54838709677419
+      },
+      {
+        "package": "com/vitalis/vitalis_app/transfer",
+        "source": "TransferJobService.java",
+        "hit": 117,
+        "total": 127,
+        "percent": 92.1259842519685
+      },
+      {
+        "package": "com/vitalis/vitalis_app/transfer",
+        "source": "TransferNotificationIds.java",
+        "hit": 31,
+        "total": 34,
+        "percent": 91.17647058823529
+      },
+      {
+        "package": "com/vitalis/vitalis_app/transfer",
+        "source": "TransferRecoveryAction.java",
+        "hit": 19,
+        "total": 19,
+        "percent": 100.0
+      }
+    ],
+    "app_lint": {
+      "errors": 0,
+      "warnings": 2
+    },
+    "all_module_lint": {
+      "modules": 12,
+      "warnings": 33,
+      "hints": 3,
+      "upstreamBaselineFilteredErrors": 2
+    },
+    "instrumentation": "COMPILED_NOT_EXECUTED"
+  },
+  "holds": [
+    "Single-invocation Windows coverage collector defect remains unexplained",
+    "Automated current-checkpoint coverage qualification remains outstanding",
+    "Build/dependency warning review remains open",
+    "API-28 and API-34+ arm64 instrumentation not executed",
+    "Physical Android acceptance and full release qualification not established"
+  ]
+}

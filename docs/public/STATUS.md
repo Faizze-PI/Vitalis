@@ -33,6 +33,15 @@ This source-equivalence check is not a fresh full-suite execution at that newer
 commit. The single-invocation Windows collector failure remains unexplained;
 [coverage qualification remains open](https://github.com/Faizze-PI/Vitalis/issues/1).
 
+The Android host transfer gate at the same coverage checkpoint also passed:
+155 JVM tests with zero failures/errors/skips, the 18-source Java transfer
+coverage gate, instrumentation-test compilation and debug lint. The app lint
+report has zero errors and two policy warnings; dependency warnings and existing
+upstream baselines remain explicitly recorded. This is not device execution or
+a zero-warning release verdict.
+The [machine-readable host evidence](../testing/evidence/host-qualification-20261028.json)
+lists every risk-file threshold, measured line counts and JVM result totals.
+
 ## Android 1.0.1
 
 - Refreshed identity and conversation-focused navigation.
