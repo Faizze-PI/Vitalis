@@ -1,0 +1,38 @@
+name: Bug report
+description: Report a reproducible app, download or build problem.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Do not post private conversations, databases, credentials, device identifiers or unredacted logs. Report sensitive security findings privately."
+  - type: input
+    id: version
+    attributes:
+      label: App version or source commit
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform and OS version
+      placeholder: Android API and ABI, or Windows version and architecture
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Use disposable example content. Include public model repository/revision when relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Expected and observed result
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Redacted evidence
+      description: Optional screenshot, error code, or public workflow link. Review it before posting.

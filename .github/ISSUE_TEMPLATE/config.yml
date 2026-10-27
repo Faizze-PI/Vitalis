@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Report a security vulnerability privately
+    url: https://github.com/Faizze-PI/Vitalis/security/advisories/new
+    about: Keep sensitive reports out of public issues.
