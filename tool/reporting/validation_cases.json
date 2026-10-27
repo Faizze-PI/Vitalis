@@ -1,0 +1,19 @@
+[
+  "test/widgets",
+  "test/providers",
+  "test/database_test.dart",
+  "test/database/installation_journal_test.dart",
+  "test/database/model_installation_journal_test.dart",
+  "test/services/context_planner_test.dart",
+  "test/services/remote_gguf_inspector_test.dart",
+  "test/services/model_download_manager_test.dart",
+  "test/services/model_download_staging_test.dart",
+  "test/services/model_downloader_test.dart",
+  "test/services/runtime_session_recovery_test.dart",
+  "test/services/startup_coordinator_test.dart",
+  "test/services/safety_logging_privacy_test.dart",
+  "test/models/device_safety_policy_test.dart",
+  "test/models/hub_artifact_uri_policy_test.dart",
+  "test/utils/app_logger_test.dart",
+  "test_benchmarks/host_storage_benchmark_test.dart"
+]

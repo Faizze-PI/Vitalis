@@ -73,6 +73,19 @@ It emits operation count, errors, elapsed time, rate, minimum, mean, median, P95
 and maximum. Pacing is excluded from per-read latency. These are host storage
 measurements, not 100 app users or phone/model performance.
 
+## Download reports from GitHub Actions
+
+The required `Checks` workflow runs this programme in its Windows host job.
+Open the completed Actions run and download **VITALIS-Excel-test-report-Windows**
+from **Artifacts**. Its ZIP contains the Excel workbook, case CSV, HTML report,
+JSON result, raw machine events and storage measurements. Retention is 30 days.
+Reports are generated after failed tests too; a failed or incomplete report keeps
+the required job failing. No reporting step changes a failure into a pass.
+
+The report generator has negative tests for missing/duplicate events, invalid
+metrics, fixture failures, skips and CSV formula injection. Its report-only
+dependency is version- and SHA-256-pinned in `tool/reporting/requirements.txt`.
+
 ## Physical acceptance still required
 
 - Correct themes, persona/note persistence, settings, full export and model flows
