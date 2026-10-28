@@ -181,6 +181,37 @@ List<String> validateWorkflow(String text) {
     final settings = step['with'];
     return settings is Map ? settings['name'] : null;
   }).toSet();
+  final windowsCoverage = commands('windows-android-host');
+  final windowsUploads = windowsSteps is List
+      ? windowsSteps.whereType<Map>().where((step) {
+          final settings = step['with'];
+          return '${step['uses']}'.startsWith('actions/upload-artifact@') &&
+              step['if'] == 'always()' &&
+              settings is Map &&
+              settings['name'] == 'windows-storage-coverage' &&
+              settings['if-no-files-found'] == 'error';
+        })
+      : <Map>[];
+  if (!coverageNeeds.contains('windows-android-host') ||
+      !downloadedNames.contains('windows-storage-coverage') ||
+      windowsUploads.isEmpty ||
+      !windowsCoverage.contains(
+        'test/services/model_storage_preflight_test.dart',
+      ) ||
+      !windowsCoverage.contains('--coverage') ||
+      !windowsCoverage.contains('.ci-evidence/windows-storage/source.txt') ||
+      !windowsCoverage.contains('Copy-Item coverage/lcov.info') ||
+      !coverage.contains('.ci-evidence/windows-storage/lcov.info') ||
+      !coverage.contains(r'$(cat .ci-evidence/windows-storage/source.txt)')) {
+    failures.add(
+      'Lifecycle coverage must include same-source Windows storage evidence',
+    );
+  }
+  for (final id in ['build-android', 'build-android-release']) {
+    if (!dependencies(jobs[id]).contains('lifecycle-coverage')) {
+      failures.add('$id: builds must wait for merged coverage qualification');
+    }
+  }
   if (!coverageNeeds.contains('test') ||
       !coverageNeeds.contains('native-text-runtime') ||
       !downloadedNames.containsAll([
@@ -285,6 +316,11 @@ List<String> validateWorkflow(String text) {
   final rootMaps = rootSteps is List
       ? rootSteps.whereType<Map>().toList()
       : <Map>[];
+  if (rootMaps.any(
+    (step) => '${step['run']}'.contains('tool/verify_coverage.dart'),
+  )) {
+    failures.add('Root coverage must be evaluated after both host producers');
+  }
   if (!rootMaps.any((step) {
     final run = '${step['run'] ?? ''}';
     final environment = step['env'];

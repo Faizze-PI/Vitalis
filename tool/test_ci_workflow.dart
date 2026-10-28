@@ -33,6 +33,15 @@ void main() {
       'Verifier does not enforce full qualification Excel reports',
     );
   }
+  final missingWindowsCoverage = source.replaceAll(
+    'name: windows-storage-coverage',
+    'name: missing-windows-coverage',
+  );
+  if (!validateWorkflow(missingWindowsCoverage).contains(
+    'Lifecycle coverage must include same-source Windows storage evidence',
+  )) {
+    throw StateError('Verifier accepts Linux-only storage coverage');
+  }
   final mutations = <String, String>{
     'missing machine events': source.replaceAll(
       '--machine',
@@ -108,8 +117,26 @@ void main() {
     ),
     'fabricated job results': source.replaceAll(r'${{ toJSON(needs) }}', '{}'),
     'missing producer dependency': source.replaceFirst(
-      'needs: [policy, test, native-text-runtime]',
+      'needs: [policy, test, native-text-runtime, windows-android-host]',
       'needs: [policy, test]',
+    ),
+    'missing Windows coverage producer': missingWindowsCoverage,
+    'omitted Windows adapter fixture': source.replaceAll(
+      'test/services/model_storage_preflight_test.dart',
+      'test/services/unrelated_test.dart',
+    ),
+    'unchecked Windows coverage source': source.replaceAll(
+      '.ci-evidence/windows-storage/source.txt',
+      '.ci-evidence/windows-storage/unchecked.txt',
+    ),
+    'build before merged coverage': source.replaceAll(
+      'needs: [policy, lifecycle-coverage]',
+      'needs: [policy, test]',
+    ),
+    'premature Linux-only coverage gate': source.replaceFirst(
+      '  native-text-runtime:\n',
+      '      - run: dart tool/verify_coverage.dart\n\n'
+          '  native-text-runtime:\n',
     ),
     'missing native artifact': source.replaceAll(
       'name: native-test-evidence',

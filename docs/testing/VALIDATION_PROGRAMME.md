@@ -97,6 +97,14 @@ transfer tests, unsigned release inspection and API-28/API-35 arm64
 instrumentation. Its aggregate result cannot pass while required runner
 infrastructure is unavailable, even if the hosted report cases pass.
 
+Coverage combines the full Linux root suite, the Windows storage-adapter fixture
+and native lifecycle/fault suites. The Windows fixture exercises the actual
+Windows path-provider branch, which Linux cannot execute. Each artifact must
+identify the same commit before the unchanged per-file thresholds are applied.
+Android build/release jobs wait for this combined coverage gate. The focused
+Windows fixture does not establish whole-suite Windows coverage or device
+acceptance.
+
 The report generator has negative tests for missing/duplicate events, invalid
 metrics, fixture failures, skips and CSV formula injection. Its report-only
 dependency is version- and SHA-256-pinned in `tool/reporting/requirements.txt`.
