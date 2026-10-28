@@ -232,7 +232,7 @@ def main():
     import os
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as stream:
-            stream.write(f"## VITALIS validation: {report['status']}\n\nPassed: {report['counts']['PASS']}; failed: {report['counts']['FAIL']}; skipped: {report['counts']['SKIP']}.\n\nDownload **VITALIS-Excel-test-report-Windows** in this run's Artifacts section for Excel, CSV, HTML and raw measurements.\n\n{report['scope']}\n")
+            stream.write(f"## VITALIS validation: {report['status']}\n\nPassed: {report['counts']['PASS']}; failed: {report['counts']['FAIL']}; skipped: {report['counts']['SKIP']}.\n\nDownload the **Excel test report** from this run's Artifacts section for Excel, CSV, HTML and JSON results.\n\n{report['scope']}\n")
     return 0 if report['status'] == 'PASS' and core_passed else 1
 
 
