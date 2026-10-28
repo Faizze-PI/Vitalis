@@ -69,6 +69,14 @@ the separate Semgrep finding requires triage, not an assumption of exploitabilit
 5. Add consolidated per-suite reporting only from executed native, JVM,
    instrumentation, coverage and artifact-inspection outputs. Planned cases remain
    separate from observed results; preserve failed and unavailable suites.
+   Native lifecycle and isolated fault commands now retain additional JSON
+   file-reporters from those same executions. The native report exporter requires
+   both terminal event streams, rejects duplicate identities and skips, and writes
+   a separate downloadable Excel/JSON/CSV/HTML artifact. Six new exporter tests
+   pass (28 reporter tests total). This source implementation still requires its
+   own full-qualification execution; old expanded logs are not relabelled as new
+   structured native results. Consolidated JVM/instrumentation reporting remains
+   pending.
 6. Complete release/build inspection and API28/API34+ arm64 instrumentation. No
    compatible self-hosted runner is registered; record that infrastructure hold.
 7. Only then perform certificate-preserving phone validation. No physical or
