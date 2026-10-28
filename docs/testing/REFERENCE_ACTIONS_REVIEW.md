@@ -46,7 +46,8 @@ the separate Semgrep finding requires triage, not an assumption of exploitabilit
 ## Ordered VITALIS work and current state
 
 1. Preserve real failures. Full qualification 40639470545 recorded a Flutter tester
-   segmentation fault while finalizing `model_startup_inspector_test.dart`, then
+   segmentation faults in `model_download_test.dart` and
+   `model_startup_inspector_test.dart`, then
    cancellation. Its root gate is FAILED, not a slow successful run. Root cause is
    unconfirmed. Added a manual diagnostic workflow comparing this fixture with and
    without coverage, preserving exact source, machine output and coverage separately.
@@ -57,6 +58,10 @@ the separate Semgrep finding requires triage, not an assumption of exploitabilit
    the required Checks workflow passed at 8f4df0c. Full qualification is still held.
 4. Keep downloadable full-suite and 300-core Excel, HTML, JSON and CSV artifacts.
    Already implemented in PR15. Cancelled runs must report blocked/incomplete evidence.
+   The cancelled 8f4df0c run retained 230 passing completed assertions but failed
+   runner and missing-measurement checks. A reporter regression now verifies that
+   HTML exposes execution problems explicitly, including escaped diagnostics;
+   Actions summaries also display those problems. All 22 reporter tests pass.
 5. Add consolidated per-suite reporting only from executed native, JVM,
    instrumentation, coverage and artifact-inspection outputs. Planned cases remain
    separate from observed results; preserve failed and unavailable suites.
