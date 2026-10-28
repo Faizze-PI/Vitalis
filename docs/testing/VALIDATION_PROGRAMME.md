@@ -82,6 +82,21 @@ JSON result, raw machine events and storage measurements. Retention is 30 days.
 Reports are generated after failed tests too; a failed or incomplete report keeps
 the required job failing. No reporting step changes a failure into a pass.
 
+The manual **Full qualification** workflow also publishes
+**VITALIS-Full-Qualification-Excel** for 30 days. This report uses the complete
+root suite plus `test_benchmarks/`, collected in the same run as root coverage.
+Its ZIP includes `VITALIS-Test-Results.xlsx` for all completed cases and
+`VITALIS-Core-300-Test-Cases.xlsx` for the matching 300-case subset, with JSON,
+CSV and HTML copies. Raw events, coverage and storage measurements are retained
+separately in **root-test-evidence**. Counts depend on the platform and executed
+cases; the core subset is not 300 additional tests. Missing completions remain
+blocked, and failed/partial reports do not establish full qualification.
+
+Full qualification additionally requires native lifecycle coverage, Android
+transfer tests, unsigned release inspection and API-28/API-35 arm64
+instrumentation. Its aggregate result cannot pass while required runner
+infrastructure is unavailable, even if the hosted report cases pass.
+
 The report generator has negative tests for missing/duplicate events, invalid
 metrics, fixture failures, skips and CSV formula injection. Its report-only
 dependency is version- and SHA-256-pinned in `tool/reporting/requirements.txt`.

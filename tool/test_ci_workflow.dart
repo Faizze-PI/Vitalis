@@ -22,7 +22,56 @@ void main() {
   if (validateWorkflow(source).isNotEmpty) {
     throw StateError('Maintained workflow fails its contracts');
   }
+  final missingExcel = source.replaceAll(
+    'name: VITALIS-Full-Qualification-Excel',
+    'name: unrelated-report',
+  );
+  if (!validateWorkflow(missingExcel).contains(
+    'Full qualification must retain downloadable Excel evidence on failure',
+  )) {
+    throw StateError(
+      'Verifier does not enforce full qualification Excel reports',
+    );
+  }
   final mutations = <String, String>{
+    'missing machine events': source.replaceAll(
+      '--machine',
+      '--reporter expanded',
+    ),
+    'omitted storage measurements': source.replaceAll(
+      'test test test_benchmarks',
+      'test test',
+    ),
+    'unbound measurement output': source.replaceAll(
+      'VITALIS_VALIDATION_METRICS:',
+      'UNBOUND_VALIDATION_METRICS:',
+    ),
+    'unhashed reporter installation': source.replaceAll('--require-hashes', ''),
+    'missing qualification reporter': source.replaceAll(
+      'python -B tool/reporting/validation_report.py',
+      'echo omitted reporter',
+    ),
+    'missing downloadable Excel': missingExcel,
+    'success-only qualification report': source.replaceFirst(
+      '      - name: Generate qualification Excel reports\n'
+          '        if: always()',
+      '      - name: Generate qualification Excel reports\n'
+          '        if: success()',
+    ),
+    'success-only qualification artifact': source.replaceFirst(
+      '      - name: Retain downloadable qualification Excel reports\n'
+          '        if: always()',
+      '      - name: Retain downloadable qualification Excel reports\n'
+          '        if: success()',
+    ),
+    'wrong report source': source.replaceAll(
+      r'--source "$GITHUB_SHA"',
+      '--source unverified',
+    ),
+    'shortened report retention': source.replaceAll(
+      'retention-days: 30',
+      'retention-days: 1',
+    ),
     'missing Windows Android host fixture': source.replaceAll(
       'dart tool/test_java_socket_policy.dart',
       'echo omitted socket fixture',

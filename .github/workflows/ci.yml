@@ -113,12 +113,41 @@ jobs:
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-$(dart tool/verify_toolchain_policy.dart --value compileSdk)" "ndk;$(dart tool/verify_toolchain_policy.dart --value ndk)"
       - run: |
           "$GITHUB_WORKSPACE/tool/run_gate.sh" pub get
+      - name: Select report Python
+        if: always()
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Verify the pinned Excel reporter
+        if: always()
+        run: |
+          python -B -m pip install --disable-pip-version-check --no-cache-dir --only-binary=:all: --require-hashes -r tool/reporting/requirements.txt
+          python -B -m unittest discover -s tool/reporting -p 'test_*.py'
       - run: |
           set -o pipefail
           mkdir -p .ci-evidence/root
           git rev-parse HEAD > .ci-evidence/root/source.txt
-          "$GITHUB_WORKSPACE/tool/run_gate.sh" test --coverage '--coverage-package=vitalis_app|llm_llamacpp' --test-randomize-ordering-seed=random --reporter expanded 2>&1 | tee .ci-evidence/root/tests.txt
+          "$GITHUB_WORKSPACE/tool/run_gate.sh" test test test_benchmarks --coverage '--coverage-package=vitalis_app|llm_llamacpp' --test-randomize-ordering-seed=random --machine 2>&1 | tee .ci-evidence/root/machine.log
           cp coverage/lcov.info .ci-evidence/root/lcov.info
+        env:
+          VITALIS_VALIDATION_METRICS: ${{ github.workspace }}/.ci-evidence/root/metrics.jsonl
+      - name: Generate qualification Excel reports
+        if: always()
+        run: |
+          python -B tool/reporting/validation_report.py --directory .ci-evidence/root --root "$GITHUB_WORKSPACE" --source "$GITHUB_SHA" --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+      - name: Retain downloadable qualification Excel reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: VITALIS-Full-Qualification-Excel
+          path: |
+            .ci-evidence/root/*.xlsx
+            .ci-evidence/root/*.json
+            .ci-evidence/root/*.csv
+            .ci-evidence/root/*.html
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30
       - run: dart run tool/verify_coverage.dart
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
