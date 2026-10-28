@@ -51,6 +51,10 @@ the separate Semgrep finding requires triage, not an assumption of exploitabilit
    cancellation. Its root gate is FAILED, not a slow successful run. Root cause is
    unconfirmed. Added a manual diagnostic workflow comparing this fixture with and
    without coverage, preserving exact source, machine output and coverage separately.
+   Diagnostic 40749024699 passed both isolated configurations. This does not close
+   the full-suite crash. The next diagnostic runs all root/benchmark tests with
+   fixed seed 20261029 and process concurrency 1 versus 4, retaining coverage and
+   raw measurements. Its bounded diagnostic window is not a qualification pass.
 2. Diagnose and correct that failure with a regression. Do not skip the fixture,
    lower coverage, or substitute a narrow diagnostic for full qualification.
 3. Keep cross-host coverage union at the same commit. Linux cannot exercise the
