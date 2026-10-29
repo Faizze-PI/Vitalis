@@ -13,9 +13,9 @@ void main() {
 
   test('Android emulator gate requires support-floor and UIDT coverage', () {
     for (final missing in [
-      source.replaceAll('api-level: [28, 35]', 'api-level: [28]'),
-      source.replaceAll('api-level: [28, 35]', 'api-level: [35]'),
-      source.replaceAll('arch: arm64-v8a', 'arch: x86_64'),
+      source.replaceAll('version=35,', 'version=34,'),
+      source.replaceAll('version=28,', 'version=29,'),
+      source.replaceAll('model=MediumPhone.arm,', 'model=MediumPhone.x86,'),
     ]) {
       expect(
         validateWorkflow(missing),
@@ -28,7 +28,7 @@ void main() {
 
   test('Android emulator results must be retained per API on failure', () {
     final missing = source.replaceAll(
-      'name: android-instrumentation-\${{ matrix.api-level }}',
+      'name: firebase-instrumentation-results',
       'name: unrelated-emulator-results',
     );
     expect(

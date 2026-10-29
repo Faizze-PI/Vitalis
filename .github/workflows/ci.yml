@@ -504,7 +504,7 @@ jobs:
           name: firebase-instrumentation-results
           path: .ci-evidence/firebase-results
           include-hidden-files: true
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 30
 
   build-android-release:
