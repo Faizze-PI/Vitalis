@@ -18,12 +18,16 @@ The retained-report workflow regenerates a workbook from committed disposable
 test XML. It does not execute Android tests. Its source field identifies the
 tested app commit, rather than the reporting workflow commit.
 
-## Live Actions integration: not yet qualified
+## Live Actions integration
 
 The `firebase-fixture-build.yml` workflow builds matching app/test APKs, verifies
 their source and SHA-256, and uses Workload Identity Federation to run Firebase.
 Its initial two attempts authenticated but failed while uploading to Firebase's
 managed results bucket. These failures remain visible in run `40812312734`.
+After allowing eight minutes for the documented Editor permission to propagate,
+attempt 3 passed: seven cases on API 28 and seven on API 35. Billing remained
+disabled. The role is required for this Firebase-managed bucket's legacy ACL;
+it is scoped to the dedicated test project.
 
 Federation is restricted to repository ID `1433731805`, owner ID `172577800`,
 the `ci/firebase-fixture-20261029` ref, and that exact workflow file. No private
@@ -31,10 +35,11 @@ service-account key is used. Moving the workflow requires an explicit update
 to the provider condition; do not broaden it to arbitrary repositories or PRs.
 
 The managed bucket is owned by Firebase. Google documents write access through
-the customer project's basic Owner/Editor roles. An Editor grant to the CI
-identity is undergoing a propagation-aware check in this otherwise dedicated
-test project. Do not interpret the grant as proof of upload access. Remove it
-if the controlled retry remains unsuccessful. Billing must remain disabled.
+the customer project's basic Owner/Editor roles. The CI identity has Editor in
+this dedicated test project. Do not put production or personal data in this
+project. Billing must remain disabled. Automated Excel collection is being
+qualified in run `40863941194`; do not claim its completion until that run and
+its artifacts have been inspected.
 
 ## References
 
