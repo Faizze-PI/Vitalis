@@ -22,7 +22,65 @@ void main() {
   if (validateWorkflow(source).isNotEmpty) {
     throw StateError('Maintained workflow fails its contracts');
   }
+  final missingExcel = source.replaceAll(
+    'name: VITALIS-Full-Qualification-Excel',
+    'name: unrelated-report',
+  );
+  if (!validateWorkflow(missingExcel).contains(
+    'Full qualification must retain downloadable Excel evidence on failure',
+  )) {
+    throw StateError(
+      'Verifier does not enforce full qualification Excel reports',
+    );
+  }
+  final missingWindowsCoverage = source.replaceAll(
+    'name: windows-storage-coverage',
+    'name: missing-windows-coverage',
+  );
+  if (!validateWorkflow(missingWindowsCoverage).contains(
+    'Lifecycle coverage must include same-source Windows storage evidence',
+  )) {
+    throw StateError('Verifier accepts Linux-only storage coverage');
+  }
   final mutations = <String, String>{
+    'missing machine events': source.replaceAll(
+      '--machine',
+      '--reporter expanded',
+    ),
+    'omitted storage measurements': source.replaceAll(
+      'test test test_benchmarks',
+      'test test',
+    ),
+    'unbound measurement output': source.replaceAll(
+      'VITALIS_VALIDATION_METRICS:',
+      'UNBOUND_VALIDATION_METRICS:',
+    ),
+    'unhashed reporter installation': source.replaceAll('--require-hashes', ''),
+    'missing qualification reporter': source.replaceAll(
+      'python -B tool/reporting/validation_report.py',
+      'echo omitted reporter',
+    ),
+    'missing downloadable Excel': missingExcel,
+    'success-only qualification report': source.replaceFirst(
+      '      - name: Generate qualification Excel reports\n'
+          '        if: always()',
+      '      - name: Generate qualification Excel reports\n'
+          '        if: success()',
+    ),
+    'success-only qualification artifact': source.replaceFirst(
+      '      - name: Retain downloadable qualification Excel reports\n'
+          '        if: always()',
+      '      - name: Retain downloadable qualification Excel reports\n'
+          '        if: success()',
+    ),
+    'wrong report source': source.replaceAll(
+      r'--source "$GITHUB_SHA"',
+      '--source unverified',
+    ),
+    'shortened report retention': source.replaceAll(
+      'retention-days: 30',
+      'retention-days: 1',
+    ),
     'missing Windows Android host fixture': source.replaceAll(
       'dart tool/test_java_socket_policy.dart',
       'echo omitted socket fixture',
@@ -59,8 +117,26 @@ void main() {
     ),
     'fabricated job results': source.replaceAll(r'${{ toJSON(needs) }}', '{}'),
     'missing producer dependency': source.replaceFirst(
-      'needs: [policy, test, native-text-runtime]',
+      'needs: [policy, test, native-text-runtime, windows-android-host]',
       'needs: [policy, test]',
+    ),
+    'missing Windows coverage producer': missingWindowsCoverage,
+    'omitted Windows adapter fixture': source.replaceAll(
+      'test/services/model_storage_preflight_test.dart',
+      'test/services/unrelated_test.dart',
+    ),
+    'unchecked Windows coverage source': source.replaceAll(
+      '.ci-evidence/windows-storage/source.txt',
+      '.ci-evidence/windows-storage/unchecked.txt',
+    ),
+    'build before merged coverage': source.replaceAll(
+      'needs: [policy, lifecycle-coverage]',
+      'needs: [policy, test]',
+    ),
+    'premature Linux-only coverage gate': source.replaceFirst(
+      '  native-text-runtime:\n',
+      '      - run: dart tool/verify_coverage.dart\n\n'
+          '  native-text-runtime:\n',
     ),
     'missing native artifact': source.replaceAll(
       'name: native-test-evidence',

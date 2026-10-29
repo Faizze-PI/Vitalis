@@ -5,8 +5,11 @@ import static org.junit.Assert.assertTrue;
 
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteException;
+import android.os.SystemClock;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 import org.junit.Test;
@@ -21,7 +24,28 @@ public final class ChatExportFixtureTest {
     public void seedLongHistory() {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         File path = context.getDatabasePath("vitalis.db");
-        assertTrue("An initialized test installation is required", path.isFile());
+        // A fresh test device has no database until Flutter's startup opens it.
+        Intent launch = context.getPackageManager().getLaunchIntentForPackage(context.getPackageName());
+        assertTrue("The test app must have a launch activity", launch != null);
+        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        InstrumentationRegistry.getInstrumentation().startActivitySync(launch);
+        long deadline = SystemClock.elapsedRealtime() + 30000;
+        boolean ready = false;
+        while (SystemClock.elapsedRealtime() < deadline && !ready) {
+            if (path.isFile()) {
+                try (SQLiteDatabase db = SQLiteDatabase.openDatabase(path.getPath(), null,
+                        SQLiteDatabase.OPEN_READONLY)) {
+                    try (Cursor tables = db.rawQuery(
+                            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('chats', 'messages')", null)) {
+                        ready = tables.moveToFirst() && tables.getInt(0) == 2 && db.getVersion() >= 8;
+                    }
+                } catch (SQLiteException ignored) {
+                    // Startup may still be creating the schema; retry until the deadline.
+                }
+            }
+            if (!ready) SystemClock.sleep(100);
+        }
+        assertTrue("App startup did not initialize the test database within 30 seconds", ready);
         String title = "QA_Export_130_20261026";
         try (SQLiteDatabase db = SQLiteDatabase.openDatabase(path.getPath(), null,
                 SQLiteDatabase.OPEN_READWRITE)) {

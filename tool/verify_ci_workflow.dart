@@ -181,6 +181,37 @@ List<String> validateWorkflow(String text) {
     final settings = step['with'];
     return settings is Map ? settings['name'] : null;
   }).toSet();
+  final windowsCoverage = commands('windows-android-host');
+  final windowsUploads = windowsSteps is List
+      ? windowsSteps.whereType<Map>().where((step) {
+          final settings = step['with'];
+          return '${step['uses']}'.startsWith('actions/upload-artifact@') &&
+              step['if'] == 'always()' &&
+              settings is Map &&
+              settings['name'] == 'windows-storage-coverage' &&
+              settings['if-no-files-found'] == 'error';
+        })
+      : <Map>[];
+  if (!coverageNeeds.contains('windows-android-host') ||
+      !downloadedNames.contains('windows-storage-coverage') ||
+      windowsUploads.isEmpty ||
+      !windowsCoverage.contains(
+        'test/services/model_storage_preflight_test.dart',
+      ) ||
+      !windowsCoverage.contains('--coverage') ||
+      !windowsCoverage.contains('.ci-evidence/windows-storage/source.txt') ||
+      !windowsCoverage.contains('Copy-Item coverage/lcov.info') ||
+      !coverage.contains('.ci-evidence/windows-storage/lcov.info') ||
+      !coverage.contains(r'$(cat .ci-evidence/windows-storage/source.txt)')) {
+    failures.add(
+      'Lifecycle coverage must include same-source Windows storage evidence',
+    );
+  }
+  for (final id in ['build-android', 'build-android-release']) {
+    if (!dependencies(jobs[id]).contains('lifecycle-coverage')) {
+      failures.add('$id: builds must wait for merged coverage qualification');
+    }
+  }
   if (!coverageNeeds.contains('test') ||
       !coverageNeeds.contains('native-text-runtime') ||
       !downloadedNames.containsAll([
@@ -278,6 +309,68 @@ List<String> validateWorkflow(String text) {
       })) {
     failures.add(
       'Android instrumentation evidence must be retained per API on failure',
+    );
+  }
+  final rootJob = jobs['test'];
+  final rootSteps = rootJob is Map ? rootJob['steps'] : null;
+  final rootMaps = rootSteps is List
+      ? rootSteps.whereType<Map>().toList()
+      : <Map>[];
+  if (rootMaps.any(
+    (step) => '${step['run']}'.contains('tool/verify_coverage.dart'),
+  )) {
+    failures.add('Root coverage must be evaluated after both host producers');
+  }
+  if (!rootMaps.any((step) {
+    final run = '${step['run'] ?? ''}';
+    final environment = step['env'];
+    return run.contains('test test test_benchmarks') &&
+        run.contains('--machine') &&
+        run.contains('.ci-evidence/root/machine.log') &&
+        environment is Map &&
+        environment['VITALIS_VALIDATION_METRICS'] ==
+            r'${{ github.workspace }}/.ci-evidence/root/metrics.jsonl';
+  })) {
+    failures.add(
+      'Full qualification must record all root cases and storage measurements',
+    );
+  }
+  if (!rootMaps.any(
+    (step) =>
+        step['if'] == 'always()' &&
+        '${step['run']}'.contains('pip install') &&
+        '${step['run']}'.contains('--require-hashes') &&
+        '${step['run']}'.contains('tool/reporting/requirements.txt'),
+  )) {
+    failures.add(
+      'Full qualification reporter dependencies must remain hash-pinned',
+    );
+  }
+  if (!rootMaps.any(
+    (step) =>
+        step['if'] == 'always()' &&
+        '${step['run']}'.contains(
+          'python -B tool/reporting/validation_report.py',
+        ) &&
+        '${step['run']}'.contains('--directory .ci-evidence/root') &&
+        '${step['run']}'.contains(r'--source "$GITHUB_SHA"'),
+  )) {
+    failures.add(
+      'Full qualification must generate source-linked reports on failure',
+    );
+  }
+  if (!rootMaps.any((step) {
+    final settings = step['with'];
+    return '${step['uses']}'.startsWith('actions/upload-artifact@') &&
+        step['if'] == 'always()' &&
+        settings is Map &&
+        settings['name'] == 'VITALIS-Full-Qualification-Excel' &&
+        settings['if-no-files-found'] == 'error' &&
+        settings['retention-days'] == 30 &&
+        '${settings['path']}'.contains('.ci-evidence/root/*.xlsx');
+  })) {
+    failures.add(
+      'Full qualification must retain downloadable Excel evidence on failure',
     );
   }
   final needed = dependencies(aggregate).toSet();

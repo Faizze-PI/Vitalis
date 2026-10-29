@@ -98,7 +98,7 @@ void main() {
 
   test('coverage must wait for its native producer', () {
     final missing = source.replaceFirst(
-      'needs: [policy, test, native-text-runtime]',
+      'needs: [policy, test, native-text-runtime, windows-android-host]',
       'needs: [policy, test]',
     );
     expect(missing, isNot(source));
