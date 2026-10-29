@@ -25,6 +25,15 @@ class FirebaseReportTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 parse_junit(xml, '28')
 
+    def test_rejects_duplicate_case_identity(self):
+        with self.assertRaises(ValueError):
+            parse_junit(b'<testsuite><testcase name="same"/><testcase name="same"/></testsuite>', '28')
+
+    def test_rejects_nonfinite_or_negative_duration(self):
+        for value in ('nan', 'inf', '-1'):
+            with self.assertRaises(ValueError):
+                parse_junit(f'<testsuite><testcase name="test" time="{value}"/></testsuite>'.encode(), '35')
+
 
 if __name__ == '__main__':
     unittest.main()

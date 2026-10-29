@@ -1,6 +1,7 @@
 """Create a Firebase instrumentation report from retained JUnit XML."""
 
 import argparse
+import math
 import pathlib
 import xml.etree.ElementTree as ET
 
@@ -14,10 +15,18 @@ def parse_junit(data, version):
     if not suites:
         raise ValueError('No test suites in JUnit XML')
     cases = []
+    identities = set()
     for suite in suites:
         entries = suite.findall('testcase')
         counts = {'tests': len(entries), 'failures': 0, 'errors': 0, 'skipped': 0}
         for entry in entries:
+            identity = (entry.get('classname', ''), entry.get('name', ''))
+            if not identity[1] or identity in identities:
+                raise ValueError('Missing or duplicate test identity')
+            identities.add(identity)
+            seconds = float(entry.get('time', '0'))
+            if not math.isfinite(seconds) or seconds < 0:
+                raise ValueError('Invalid test duration')
             issue = next((entry.find(tag) for tag in ('failure', 'error', 'skipped')
                           if entry.find(tag) is not None), None)
             kind = issue.tag if issue is not None else None
@@ -26,7 +35,7 @@ def parse_junit(data, version):
             cases.append({'api': version, 'class': entry.get('classname', ''),
                           'name': entry.get('name', ''),
                           'status': 'SKIPPED' if kind == 'skipped' else 'FAIL' if kind else 'PASS',
-                          'seconds': float(entry.get('time', '0')),
+                          'seconds': seconds,
                           'detail': (issue.get('message', '') or (issue.text or '').strip()) if issue is not None else ''})
         for key, value in counts.items():
             if key in suite.attrib and int(suite.attrib[key]) != value:
