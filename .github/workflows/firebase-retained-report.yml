@@ -1,0 +1,32 @@
+name: Firebase retained evidence report
+on:
+  push:
+    branches: [ci/firebase-fixture-20261029]
+    paths: [tool/reporting/**, .github/workflows/firebase-retained-report.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  report:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+      - name: Verify report generator
+        run: |
+          python -B -m pip install --require-hashes -r tool/reporting/requirements.txt
+          python -B -m unittest discover -s tool/reporting -p 'test_*.py'
+      - name: Report retained Firebase results
+        run: |
+          python -B tool/reporting/firebase_report.py --api28 tool/reporting/fixtures/firebase-c444200/api28.xml --api35 tool/reporting/fixtures/firebase-c444200/api35.xml --source c444200f21abec2609ff1104c9d2763b8515fcd4 --run-url https://console.firebase.google.com/project/vitalis-c94ea/testlab/histories/bh.c7e0f29956b52924/matrices/8732966506937508425 --output reports/VITALIS-Android-Instrumentation.xlsx
+          echo 'Report of retained Firebase execution: 7 tests on API 28 and 7 on API 35. This workflow generates the report; it does not rerun Android tests.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: VITALIS-Firebase-Excel-Retained-Results
+          path: |
+            reports/*.xlsx
+            tool/reporting/fixtures/firebase-c444200/*.xml
+          if-no-files-found: error
+          retention-days: 30
