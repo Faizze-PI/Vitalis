@@ -2,6 +2,7 @@ name: Firebase test package build
 on:
   push:
     branches: [ci/firebase-fixture-20261029]
+    paths-ignore: [tool/reporting/**, .github/workflows/firebase-retained-report.yml]
   workflow_dispatch:
 permissions:
   contents: read
