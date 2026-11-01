@@ -277,36 +277,68 @@ List<String> validateWorkflow(String text) {
           ),
         )
       : <Map>[];
-  if (levels is! List ||
-      !levels.contains(28) ||
-      !levels.whereType<int>().any((level) => level >= 34) ||
-      strategy['fail-fast'] != false ||
-      !emulatorSteps.any((step) {
-        final settings = step['with'];
-        return settings is Map &&
-            settings['api-level'] == r'${{ matrix.api-level }}' &&
-            settings['arch'] == 'arm64-v8a' &&
-            settings['target'] == 'google_apis' &&
-            '${settings['script']}'.contains('connectedDebugAndroidTest') &&
-            step['continue-on-error'] != true;
-      })) {
-    failures.add(
-      'Android instrumentation must require API-28 and API-34+ arm64 runs',
-    );
-  }
-  if (instrumentationSteps is! List ||
-      !instrumentationSteps.whereType<Map>().any((step) {
+  final firebaseSteps = instrumentationSteps is List
+      ? instrumentationSteps.whereType<Map>().toList()
+      : <Map>[];
+  final firebaseRuns = firebaseSteps.where((step) {
+    final run = '${step['run'] ?? ''}';
+    return run.contains('gcloud firebase test android run') &&
+        run.contains('--type=instrumentation') &&
+        run.contains('model=MediumPhone.arm,version=28,') &&
+        run.contains('model=MediumPhone.arm,version=35,') &&
+        step['continue-on-error'] != true;
+  }).isNotEmpty;
+  final firebaseEvidence =
+      firebaseSteps.any(
+        (step) =>
+            '${step['run']}'.contains(
+              'tool/reporting/collect_firebase_xml.py',
+            ) &&
+            '${step['run']}'.contains('--api28 ') &&
+            '${step['run']}'.contains('--api35 ') &&
+            step['if'] == 'always()',
+      ) &&
+      firebaseSteps.any((step) {
         final settings = step['with'];
         return '${step['uses']}'.startsWith('actions/upload-artifact@') &&
             step['if'] == 'always()' &&
             settings is Map &&
-            settings['name'] ==
-                r'android-instrumentation-${{ matrix.api-level }}' &&
+            settings['name'] == 'firebase-instrumentation-results' &&
             settings['if-no-files-found'] == 'error' &&
-            '${settings['path']}'.contains(
-              'build/app/outputs/androidTest-results/',
-            );
-      })) {
+            '${settings['path']}'.contains('.ci-evidence/firebase-results');
+      });
+  if (!firebaseRuns &&
+      (levels is! List ||
+          !levels.contains(28) ||
+          !levels.whereType<int>().any((level) => level >= 34) ||
+          strategy['fail-fast'] != false ||
+          !emulatorSteps.any((step) {
+            final settings = step['with'];
+            return settings is Map &&
+                settings['api-level'] == r'${{ matrix.api-level }}' &&
+                settings['arch'] == 'arm64-v8a' &&
+                settings['target'] == 'google_apis' &&
+                '${settings['script']}'.contains('connectedDebugAndroidTest') &&
+                step['continue-on-error'] != true;
+          }))) {
+    failures.add(
+      'Android instrumentation must require API-28 and API-34+ arm64 runs',
+    );
+  }
+  if (!firebaseEvidence &&
+      (instrumentationSteps is! List ||
+          !instrumentationSteps.whereType<Map>().any((step) {
+            final settings = step['with'];
+            return '${step['uses']}'.startsWith('actions/upload-artifact@') &&
+                step['if'] == 'always()' &&
+                settings is Map &&
+                settings['name'] ==
+                    r'android-instrumentation-${{ matrix.api-level }}' &&
+                settings['if-no-files-found'] == 'error' &&
+                '${settings['path']}'.contains(
+                  'build/app/outputs/androidTest-results/',
+                );
+          }))) {
     failures.add(
       'Android instrumentation evidence must be retained per API on failure',
     );
