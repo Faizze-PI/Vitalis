@@ -27,6 +27,86 @@ import 'package:vitalis_app/widgets/message_bubble.dart';
 import 'package:vitalis_app/constants/app_strings.dart';
 
 void main() {
+  for (final variableHeights in [false, true]) {
+    testWidgets(
+      'saved history opens at latest and older pages stay reachable variableHeights=$variableHeights',
+      (tester) async {
+        final database = _Database();
+        database.rows
+          ..clear()
+          ..addAll([
+            for (var id = 1; id <= 130; id++)
+              Message(
+                id: id,
+                chatId: 1,
+                role: id.isEven ? MessageRole.assistant : MessageRole.user,
+                content: variableHeights && id % 3 == 0
+                    ? 'History $id\n\n${List.filled(8, 'A longer saved paragraph.').join('\n\n')}'
+                    : 'History $id',
+              ),
+          ]);
+        final chat = await _pumpChat(tester, database);
+        expect(chat.messages.first.id, 31);
+        final latest = find.text('History 130', findRichText: true);
+        expect(latest.hitTestable(), findsOneWidget);
+        await tester.dragUntilVisible(
+          find.text('Load earlier messages').hitTestable(),
+          find.byType(ListView),
+          const Offset(0, 600),
+          maxIteration: database.rows.length,
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Load earlier messages'));
+        await tester.pumpAndSettle();
+        expect(chat.messages.first.id, 1);
+        final earliest = find.text('History 1', findRichText: true);
+        await tester.dragUntilVisible(
+          earliest.hitTestable(),
+          find.byType(ListView),
+          const Offset(0, 600),
+          maxIteration: database.rows.length,
+        );
+        await tester.pumpAndSettle();
+        expect(earliest.hitTestable(), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
+      },
+    );
+  }
+
+  testWidgets('saved history opens at latest after selecting another chat', (
+    tester,
+  ) async {
+    final database = _Database();
+    database.rows
+      ..clear()
+      ..addAll([
+        for (var id = 1; id <= 260; id++)
+          Message(
+            id: id,
+            chatId: id <= 130 ? 1 : 2,
+            role: MessageRole.assistant,
+            content: 'History $id',
+          ),
+      ]);
+    final chat = await _pumpChat(tester, database);
+    await tester.dragUntilVisible(
+      find.text('Load earlier messages').hitTestable(),
+      find.byType(ListView),
+      const Offset(0, 600),
+      maxIteration: database.rows.length,
+    );
+    await chat.selectChat(2);
+    await tester.pumpAndSettle();
+    expect(chat.currentChat!.id, 2);
+    expect(
+      find.text('History 260', findRichText: true).hitTestable(),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   for (final fails in [false, true]) {
     testWidgets(
       'pending prompt save cannot affect a newly selected chat failure=$fails',
