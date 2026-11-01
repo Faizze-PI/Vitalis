@@ -226,9 +226,16 @@ class _ModelLibraryScreenState extends State<ModelLibraryScreen>
         ),
       if (_filteredResults(library).isEmpty &&
           library.status != ModelLibraryStatus.idle)
-        const SliverFillRemaining(
+        SliverFillRemaining(
           hasScrollBody: false,
-          child: Center(child: Text('Search public GGUF models')),
+          child: Center(
+            child: Text(
+              library.status == ModelLibraryStatus.empty ||
+                      library.status == ModelLibraryStatus.ready
+                  ? 'No matching GGUF models. Try another name or change filters.'
+                  : 'Search public GGUF models',
+            ),
+          ),
         )
       else
         SliverList.builder(

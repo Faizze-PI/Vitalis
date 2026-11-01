@@ -365,7 +365,12 @@ void main() {
       if (state == ModelLibraryStatus.offline)
         expect(find.text('Showing cached results'), findsOneWidget);
       if (state == ModelLibraryStatus.empty)
-        expect(find.text('Search public GGUF models'), findsOneWidget);
+        expect(
+          find.text(
+            'No matching GGUF models. Try another name or change filters.',
+          ),
+          findsOneWidget,
+        );
       await tester.tap(find.text('Installed'));
       await tester.pumpAndSettle();
       expect(find.text('Import Local GGUF'), findsOneWidget);
