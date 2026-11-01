@@ -44,17 +44,27 @@ Release SHA-256:
 ## Remaining acceptance
 
 1. [Repeat qualification 41313192814](https://github.com/Faizze-PI/Vitalis/actions/runs/41313192814)
-   is running from a fresh hosted checkout of the same source. Its outcome is
-   pending and must be inspected independently.
-2. Qualification changes remain on `ci/firebase-fixture-20261029`. Passing this
-   branch does not establish passing merged `main`. Integration must preserve
-   keyless Firebase authorization restrictions and pass the applicable checks.
+   passed all ten jobs in a fresh hosted checkout of the same source. Root and
+   native case identities/outcomes match; Android JVM again passed 155 cases.
+   Both live API runs again passed seven cases. The APK is byte-identical.
+   AAB application payloads match; only `compilation.buildTimeNs` in R8 build
+   metadata differs. This explains the AAB hash difference without claiming
+   byte-identical archives. All 258 FFI symbols referenced by generated bindings
+   and the runtime bridge were independently found in both release artifacts.
+2. PR #16 integrated the qualification changes into the existing qualification
+   branch. PR #15's checks still govern integration into `main`; that merge is
+   not established by the two candidate qualification runs.
 3. The seven instrumentation cases per API cover narrow startup/transfer fixture
    behavior. Complete on-phone UI, model-library, notification, document-picker,
    process-recovery and preservation acceptance is still required.
-4. No phone appeared in the current ADB listing. Do not install or infer device
-   results while it is absent. Recheck authorization, certificates and data
-   inventory before any authorized in-place installation.
+4. The OPPO subsequently reconnected. A fresh debug-signed arm64 profile APK
+   was built at `071581cae8be2239dd57b74a132f7bc1e41c838c` (only documentation
+   differs from the qualified runtime source). Certificate comparison passed;
+   an in-place update succeeded and the installed APK hash matched the candidate.
+   Every prior row in 14 database tables and the preference file remained
+   unchanged after installation and five stopped-state launches. Database
+   integrity passed. These are scoped preservation/startup passes, not complete
+   feature or performance acceptance. Private snapshots remain local.
 5. Ten-request inference, visible/native cancellation, prefix reuse, comparable
    legacy TTFT/throughput and workload-linked memory/thermal acceptance remain
    physical gates. Missing comparable legacy data retains its own hold.

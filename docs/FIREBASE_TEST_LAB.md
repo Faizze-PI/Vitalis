@@ -30,9 +30,11 @@ disabled. The role is required for this Firebase-managed bucket's legacy ACL;
 it is scoped to the dedicated test project.
 
 Federation is restricted to repository ID `1433731805`, owner ID `172577800`,
-the `ci/firebase-fixture-20261029` ref, and that exact workflow file. No private
-service-account key is used. Moving the workflow requires an explicit update
-to the provider condition; do not broaden it to arbitrary repositories or PRs.
+and exact workflow/ref pairs. The candidate branch permits its fixture-build
+and full-qualification workflows. On 1 November, the exact `ci.yml` workflow on
+trusted `main` was explicitly added for integration. No private service-account
+key is used. Other workflow/ref changes require an explicit provider update;
+do not broaden access to arbitrary repositories or pull-request refs.
 
 The managed bucket is owned by Firebase. Google documents write access through
 the customer project's basic Owner/Editor roles. The CI identity has Editor in
@@ -48,9 +50,10 @@ and raw XML are downloadable as
 [firebase-instrumentation-results](https://github.com/Faizze-PI/Vitalis/actions/runs/40865519244/artifacts/12895154934).
 This remains instrumentation evidence, not complete feature or phone acceptance.
 
-The provider condition now permits both `firebase-fixture-build.yml` and
-`ci.yml` on the same restricted branch. It does not permit arbitrary workflow
-files, pull-request refs or `main`.
+The repeat full qualification run `41313192814` also passed seven cases per API
+with no failures, errors or skips. Its
+[live Excel/XML artifact](https://github.com/Faizze-PI/Vitalis/actions/runs/41313192814/artifacts/13088100464)
+was downloaded and inspected. Billing was independently rechecked as disabled.
 
 ## References
 

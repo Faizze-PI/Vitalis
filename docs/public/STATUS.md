@@ -11,12 +11,15 @@ The configured Dart and Java risk-coverage gates and Android release checks
 passed. Actual Excel, XML and artifact links are in the
 [qualification checkpoint](../testing/QUALIFICATION_2026-11-01.md).
 
-The qualification changes remain on a candidate branch. A repeat clean-checkout
-run is pending; neither merged-main qualification nor Android CPU ratification
-is established. The instrumentation suite is narrow and does not replace the
-full phone feature, data-preservation and performance programme. A phone was
-not detected during this checkpoint. Registered tool/dependency warnings remain
-open with their documented dispositions. Earlier results below are historical.
+The [repeat clean-checkout run](https://github.com/Faizze-PI/Vitalis/actions/runs/41313192814)
+also passed all ten jobs. Root/native cases match between runs; APK bytes match,
+and the AAB differs only in R8 compilation-duration metadata. The OPPO then
+reconnected: a certificate-matched in-place profile update preserved all prior
+rows in 14 tables and the preference file, including after five successful
+stopped-state launches. Full feature, inference and performance acceptance is
+still pending. Neither merged-main qualification nor Android CPU ratification
+is established. Registered tool/dependency warnings remain open with their
+documented dispositions. Earlier results below are historical.
 
 ## Verified host evidence — 28 October 2026
 
