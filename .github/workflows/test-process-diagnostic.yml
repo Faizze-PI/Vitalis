@@ -1,0 +1,69 @@
+name: Test process diagnostic
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/test-process-diagnostic.yml
+      - test/services/model_startup_inspector_test.dart
+permissions:
+  contents: read
+jobs:
+  policy:
+    runs-on: ubuntu-24.04
+    outputs:
+      flutter: ${{ steps.policy.outputs.flutter }}
+      jdk: ${{ steps.policy.outputs.jdk }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: policy
+        run: |
+          node -e 'const fs=require("fs"),p=JSON.parse(fs.readFileSync("tool/toolchain_policy.json")); for(const k of ["flutter","jdk"]){if(!/^\d+\.\d+\.\d+$/.test(p[k]))throw Error("Invalid policy");fs.appendFileSync(process.env.GITHUB_OUTPUT,k+"="+p[k]+"\n");}'
+  reproduce:
+    needs: policy
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        concurrency: [1, 4]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+        with:
+          flutter: ${{ needs.policy.outputs.flutter }}
+          jdk: ${{ needs.policy.outputs.jdk }}
+      - run: ./tool/run_gate.sh pub get --enforce-lockfile
+      - name: Compare complete-suite process concurrency
+        timeout-minutes: 20
+        env:
+          TEST_CONCURRENCY: ${{ matrix.concurrency }}
+          VITALIS_VALIDATION_METRICS: ${{ github.workspace }}/.ci-evidence/diagnostic/metrics.jsonl
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-evidence/diagnostic
+          git rev-parse HEAD > .ci-evidence/diagnostic/source.txt
+          args=(test test test_benchmarks --no-pub "--concurrency=$TEST_CONCURRENCY" --test-randomize-ordering-seed=20261029 --coverage '--coverage-package=vitalis_app|llm_llamacpp' --machine)
+          ./tool/run_gate.sh "${args[@]}" 2>&1 | tee .ci-evidence/diagnostic/machine.log
+      - name: Preserve any completed coverage
+        if: always()
+        run: |
+          if [[ -f coverage/lcov.info ]]; then cp coverage/lcov.info .ci-evidence/diagnostic/lcov.info; fi
+      - name: Record diagnostic scope
+        if: always()
+        run: |
+          echo 'This focused reproduction is diagnostic evidence only. It does not replace full qualification or establish Android readiness.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: test-process-diagnostic-concurrency-${{ matrix.concurrency }}
+          path: |
+            .ci-evidence/diagnostic
+            coverage/lcov.info
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 30

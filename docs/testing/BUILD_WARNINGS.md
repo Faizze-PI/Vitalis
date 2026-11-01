@@ -75,3 +75,16 @@ are retained locally under the remediation evidence line.
 Gradle task states such as `NO-SOURCE`, `UP-TO-DATE` and a skipped plugin
 configuration-check task are not counts of skipped product test cases. Product
 test totals and skips must come from their actual test-result reports.
+
+## BW-009 — hosted Ubuntu label migration
+
+- **Owner:** VITALIS CI maintainer.
+- **Observation:** Actions warned that `ubuntu-latest` is moving to Ubuntu 26.
+  The qualification run that executed 1,394 passing root/benchmark cases used
+  Ubuntu 24.04.5, image `20261025.353.1`.
+- **Correction:** both maintained workflows select `ubuntu-24.04`, retaining the
+  tested OS line. Image patch versions remain recorded in each run; this does
+  not assert immutable hosted images or identical artifact bytes.
+- **Verification:** the corrected workflows still require hosted execution.
+  The source change does not establish a passing release/physical gate.
+- **Review:** before changing the runner OS line or publication.

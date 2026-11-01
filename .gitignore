@@ -61,3 +61,4 @@ Thumbs.db
 *.iml
 # Python report-tool bytecode is generated, never source evidence.
 **/__pycache__/
+gha-creds-*.json

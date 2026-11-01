@@ -1,5 +1,26 @@
 # Preview status
 
+## Latest qualification — 1 November 2026
+
+Source `412cb82533dddfc02d8bd1dad1711d5990237f79` passed all ten jobs in
+[Full qualification](https://github.com/Faizze-PI/Vitalis/actions/runs/40865519244):
+1,394 root/host cases, 91 native-runtime cases, 155 Android JVM cases, and seven
+ARM64 instrumentation cases on each of API 28 and API 35. These are separate,
+potentially overlapping suites, not additive unique feature requirements.
+The configured Dart and Java risk-coverage gates and Android release checks
+passed. Actual Excel, XML and artifact links are in the
+[qualification checkpoint](../testing/QUALIFICATION_2026-11-01.md).
+
+The [repeat clean-checkout run](https://github.com/Faizze-PI/Vitalis/actions/runs/41313192814)
+also passed all ten jobs. Root/native cases match between runs; APK bytes match,
+and the AAB differs only in R8 compilation-duration metadata. The OPPO then
+reconnected: a certificate-matched in-place profile update preserved all prior
+rows in 14 tables and the preference file, including after five successful
+stopped-state launches. Full feature, inference and performance acceptance is
+still pending. Neither merged-main qualification nor Android CPU ratification
+is established. Registered tool/dependency warnings remain open with their
+documented dispositions. Earlier results below are historical.
+
 ## Verified host evidence — 28 October 2026
 
 At source `cf3635008773a5a14d0a4d8daf7106349c733a87`, all five required

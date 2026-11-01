@@ -205,11 +205,13 @@ def write_reports(report, output):
     workbook.close()
     rows = ''.join('<tr>' + ''.join(f'<td>{html.escape(str(case[key]))}</td>' for key in
                    ('id', 'file', 'name', 'status', 'duration_ms')) + '</tr>' for case in report['cases'])
+    problems = ('<h2>Execution problems</h2><p>Completed assertions are not proof of a complete successful run.</p><ul>'
+                + ''.join(f'<li>{html.escape(problem)}</li>' for problem in report['problems']) + '</ul>') if report['problems'] else ''
     (output/'report.html').write_text('<!doctype html><html lang="en"><meta charset="utf-8"><title>VITALIS test results</title>'
         '<style>body{font:15px system-ui;margin:32px;color:#183b56}table{border-collapse:collapse;width:100%}'
         'th,td{padding:8px;text-align:left;border-bottom:1px solid #ddd}th{background:#183b56;color:white}</style>'
         f'<h1>VITALIS test results: {report["status"]}</h1><p>{html.escape(report["scope"])}</p>'
-        f'<p>{html.escape(str(report["counts"]))}</p><table><thead><tr><th>ID</th><th>File</th><th>Case</th><th>Result</th><th>Test ms</th></tr></thead><tbody>'
+        f'<p>{html.escape(str(report["counts"]))}</p>{problems}<table><thead><tr><th>ID</th><th>File</th><th>Case</th><th>Result</th><th>Test ms</th></tr></thead><tbody>'
         + rows + '</tbody></table></html>', encoding='utf-8')
 
 
@@ -232,7 +234,10 @@ def main():
     import os
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as stream:
-            stream.write(f"## VITALIS validation: {report['status']}\n\nPassed: {report['counts']['PASS']}; failed: {report['counts']['FAIL']}; skipped: {report['counts']['SKIP']}.\n\nDownload **VITALIS-Excel-test-report-Windows** in this run's Artifacts section for Excel, CSV, HTML and raw measurements.\n\n{report['scope']}\n")
+            stream.write(f"## VITALIS validation: {report['status']}\n\nPassed: {report['counts']['PASS']}; failed: {report['counts']['FAIL']}; skipped: {report['counts']['SKIP']}.\n\nDownload the **Excel test report** from this run's Artifacts section for Excel, CSV, HTML and JSON results.\n\n{report['scope']}\n")
+            if report['problems']:
+                stream.write('\n### Execution problems\n\nCompleted assertions are not proof of a complete successful run.\n\n')
+                stream.write('\n'.join('- ' + html.escape(problem) for problem in report['problems']) + '\n')
     return 0 if report['status'] == 'PASS' and core_passed else 1
 
 

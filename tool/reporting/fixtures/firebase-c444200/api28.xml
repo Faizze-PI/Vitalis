@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<testsuites>
+  <testsuite name='' hostname='localhost' tests='7' failures='0' skipped='0' errors='0' time='2.311' timestamp='2026-10-28T20:23:38'>
+    <properties />
+    <testcase name='seedLongHistory' classname='com.vitalis.vitalis_app.ChatExportFixtureTest' time='2.234' />
+    <testcase name='foregroundNotificationCanBeCreatedFromPersistedState' classname='com.vitalis.vitalis_app.transfer.TransferRuntimeInstrumentationTest' time='0.0' />
+    <testcase name='manifestSurvivesStoreReconstructionAndSelectsRecovery' classname='com.vitalis.vitalis_app.transfer.TransferRuntimeInstrumentationTest' time='0.016' />
+    <testcase name='pauseCancelAndSystemStopHaveDistinctSchedulerSemantics' classname='com.vitalis.vitalis_app.transfer.TransferRuntimeInstrumentationTest' time='0.036' />
+    <testcase name='pauseCannotAcknowledgeUntilWriterLeaseIsReleased' classname='com.vitalis.vitalis_app.transfer.TransferStopWorkerInstrumentationTest' time='0.0' />
+    <testcase name='acknowledgedCancelRemovesOnlyItsOwnPartial' classname='com.vitalis.vitalis_app.transfer.TransferStopWorkerInstrumentationTest' time='0.0' />
+    <testcase name='staleStopCannotChangeResumedGeneration' classname='com.vitalis.vitalis_app.transfer.TransferStopWorkerInstrumentationTest' time='0.025' />
+  </testsuite>
+</testsuites>

@@ -1,7 +1,9 @@
 import json
+import tempfile
 import unittest
+from pathlib import Path
 
-from validation_report import csv_safe, make_report
+from validation_report import csv_safe, make_report, write_reports
 
 
 def events(extra=None):
@@ -23,6 +25,18 @@ def metrics():
 
 
 class ReportTest(unittest.TestCase):
+    def test_html_explains_runner_failure_even_when_completed_cases_pass(self):
+        report = self.report('\n'.join(events().splitlines()[:-1]))
+        report['problems'].append('Diagnostic <must be escaped>')
+        with tempfile.TemporaryDirectory() as temporary:
+            output = Path(temporary)
+            write_reports(report, output)
+            page = (output / 'report.html').read_text(encoding='utf-8')
+        self.assertIn('Execution problems', page)
+        self.assertIn('Diagnostic &lt;must be escaped&gt;', page)
+        self.assertIn('Completed assertions are not proof of a complete successful run.', page)
+        self.assertNotIn('Diagnostic <must be escaped>', page)
+
     def report(self, raw=None, measured=None):
         return make_report(events() if raw is None else raw,
                            metrics() if measured is None else measured,
