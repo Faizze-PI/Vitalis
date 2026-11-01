@@ -1,3 +1,4 @@
+import 'dart:ui' show SemanticsAction;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
@@ -19,6 +20,47 @@ StartupCapabilities _capabilities(bool ready) => StartupCapabilities(
 );
 
 void main() {
+  for (final active in [false, true]) {
+    testWidgets(
+      'history delete remains independently accessible active=$active',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        try {
+          final guard = StartupAccessGuard(() => _capabilities(true));
+          final history = _History(guard)..active = active;
+          addTearDown(history.dispose);
+          await _pump(tester, history, guard);
+          final nodes = tester.semantics
+              .simulatedAccessibilityTraversal()
+              .where(
+                (node) =>
+                    node.label == '${AppStrings.deleteChat}: Disposable chat' ||
+                    node.getSemanticsData().tooltip ==
+                        '${AppStrings.deleteChat}: Disposable chat',
+              )
+              .toList();
+          expect(
+            nodes,
+            hasLength(1),
+            reason: tester.semantics
+                .simulatedAccessibilityTraversal()
+                .map(
+                  (node) => '${node.label}: ${node.getSemanticsData().actions}',
+                )
+                .join(' | '),
+          );
+          expect(
+            nodes.single.getSemanticsData().hasAction(SemanticsAction.tap),
+            isTrue,
+          );
+          expect(tester.takeException(), isNull);
+        } finally {
+          semantics.dispose();
+        }
+      },
+    );
+  }
+
   testWidgets('history reports committed deletion without suggesting retry', (
     tester,
   ) async {
@@ -180,6 +222,9 @@ final class _History extends ChatProvider {
   _History(this.guard) : super(startupAccess: guard);
 
   final StartupAccessGuard guard;
+  bool active = false;
+  @override
+  Chat? get currentChat => active ? records.first : null;
   int deletions = 0;
   Object? failure;
   final List<Chat> records = [
