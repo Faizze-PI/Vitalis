@@ -115,7 +115,7 @@ jobs:
           "$GITHUB_WORKSPACE/tool/run_gate.sh" pub get
       - name: Select report Python
         if: always()
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.13'
       - name: Verify the pinned Excel reporter
@@ -269,7 +269,7 @@ jobs:
           ASAN_OPTIONS=halt_on_error=1 ctest --test-dir .native-build/cancel-lifetime --output-on-failure
       - name: Select native report Python
         if: always()
-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.13'
       - name: Generate native suite Excel reports
@@ -485,7 +485,7 @@ jobs:
             --timeout=5m --quiet --format=json \
             > .ci-evidence/firebase-results/results.json \
             2> >(tee .ci-evidence/firebase-results/gcloud.log >&2)
-      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         if: always()
         with:
           python-version: '3.13'
