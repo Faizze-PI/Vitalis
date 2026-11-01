@@ -1,5 +1,23 @@
 # Preview status
 
+## Latest qualification — 1 November 2026
+
+Source `412cb82533dddfc02d8bd1dad1711d5990237f79` passed all ten jobs in
+[Full qualification](https://github.com/Faizze-PI/Vitalis/actions/runs/40865519244):
+1,394 root/host cases, 91 native-runtime cases, 155 Android JVM cases, and seven
+ARM64 instrumentation cases on each of API 28 and API 35. These are separate,
+potentially overlapping suites, not additive unique feature requirements.
+The configured Dart and Java risk-coverage gates and Android release checks
+passed. Actual Excel, XML and artifact links are in the
+[qualification checkpoint](../testing/QUALIFICATION_2026-11-01.md).
+
+The qualification changes remain on a candidate branch. A repeat clean-checkout
+run is pending; neither merged-main qualification nor Android CPU ratification
+is established. The instrumentation suite is narrow and does not replace the
+full phone feature, data-preservation and performance programme. A phone was
+not detected during this checkpoint. Registered tool/dependency warnings remain
+open with their documented dispositions. Earlier results below are historical.
+
 ## Verified host evidence — 28 October 2026
 
 At source `cf3635008773a5a14d0a4d8daf7106349c733a87`, all five required
