@@ -11,7 +11,7 @@ application qualification.
   passed on each API, with zero XML failures, errors, or skips.
 - [Firebase execution](https://console.firebase.google.com/project/vitalis-c94ea/testlab/histories/bh.c7e0f29956b52924/matrices/8732966506937508425).
 - [Retained-result Excel and XML](https://github.com/Faizze-PI/Vitalis/actions/runs/40861234608/artifacts/12890839681).
-- Report generation has 33 passing unit tests. Duplicate cases, inconsistent
+- Report generation has 35 passing unit tests. Duplicate cases, inconsistent
   totals, malformed XML, and invalid durations are rejected.
 
 The retained-report workflow regenerates a workbook from committed disposable
@@ -37,9 +37,20 @@ to the provider condition; do not broaden it to arbitrary repositories or PRs.
 The managed bucket is owned by Firebase. Google documents write access through
 the customer project's basic Owner/Editor roles. The CI identity has Editor in
 this dedicated test project. Do not put production or personal data in this
-project. Billing must remain disabled. Automated Excel collection is being
-qualified in run `40863941194`; do not claim its completion until that run and
-its artifacts have been inspected.
+project. Billing must remain disabled. Automated Excel collection passed in
+run `40863941194`; its downloaded artifact contains both device XML files,
+the actual cloud outcomes and `VITALIS-Firebase-Instrumentation.xlsx`.
+
+Full qualification run `40865519244`, source
+`412cb82533dddfc02d8bd1dad1711d5990237f79`, also passed both live device runs
+with seven cases each and zero failures, errors or skips. The matching workbook
+and raw XML are downloadable as
+[firebase-instrumentation-results](https://github.com/Faizze-PI/Vitalis/actions/runs/40865519244/artifacts/12895154934).
+This remains instrumentation evidence, not complete feature or phone acceptance.
+
+The provider condition now permits both `firebase-fixture-build.yml` and
+`ci.yml` on the same restricted branch. It does not permit arbitrary workflow
+files, pull-request refs or `main`.
 
 ## References
 
