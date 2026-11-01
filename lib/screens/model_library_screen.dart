@@ -620,7 +620,9 @@ class _ModelLibraryScreenState extends State<ModelLibraryScreen>
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: Text(
-            model.isLargeModel || fit.level == DeviceFitLevel.memoryRisk
+            metadata.textChatRejection != null
+                ? 'Unsupported chat model'
+                : model.isLargeModel || fit.level == DeviceFitLevel.memoryRisk
                 ? '⚠ Check device fit'
                 : 'Download model?',
           ),
@@ -638,7 +640,8 @@ class _ModelLibraryScreenState extends State<ModelLibraryScreen>
             'Revision: ${model.revision}\n'
             'Hash authority: ${variant.files.every((file) => file.sha256 != null) ? 'Publisher LFS SHA-256' : 'Revision/ETag plus local SHA-256'}\n\n'
             '${model.isLargeModel ? 'This model has more than 4 billion parameters and may be very slow or run out of memory on this device.\n\n' : ''}'
-            '${fit.reason}\n'
+            '${metadata.textChatRejection ?? fit.reason}\n'
+            '${metadata.complete ? '' : 'Format compatibility is unknown until local validation.\n'}'
             '${fit.estimatedMemoryBytes == null ? '' : 'Estimated working memory: ${_bytes(fit.estimatedMemoryBytes)}\n'}\n'
             'The download is public, pinned to revision ${model.revision.substring(0, 8)}, and runs locally after installation.',
           ),
@@ -649,7 +652,8 @@ class _ModelLibraryScreenState extends State<ModelLibraryScreen>
             ),
             FilledButton(
               onPressed:
-                  fit.level == DeviceFitLevel.insufficientDisk ||
+                  metadata.textChatRejection != null ||
+                      fit.level == DeviceFitLevel.insufficientDisk ||
                       fit.level == DeviceFitLevel.incompatible
                   ? null
                   : () => Navigator.pop(dialogContext, true),

@@ -133,6 +133,8 @@ class ModelLibraryProvider extends ChangeNotifier {
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    _lastRemoteKey = null;
+    _lastRemoteMetadata = null;
     _downloads.removeJobListener(_onDownloadUpdate);
     _searchIdentity++;
     _recovery.removeListener(_publishRecovery);
@@ -148,6 +150,8 @@ class ModelLibraryProvider extends ChangeNotifier {
   final DeviceFitEstimator _fitEstimator;
   final PersistentHubSearchCache _searchCache;
   final RemoteGgufInspector _remoteInspector;
+  (String, String, String)? _lastRemoteKey;
+  RemoteGgufMetadata? _lastRemoteMetadata;
   final ModelUpdateService _updates;
   final SelectedModelReadiness? _selectedModel;
   final PlatformModelFolderOpener _folderOpener;
@@ -409,18 +413,37 @@ class ModelLibraryProvider extends ChangeNotifier {
       ],
       queryParameters: const {'download': 'true'},
     );
+    RemoteGgufMetadata metadata;
     try {
-      return await _remoteInspector.inspect(source);
+      metadata = await _remoteInspector.inspect(source);
     } catch (_) {
-      return RemoteGgufMetadata.unknown;
+      metadata = RemoteGgufMetadata.unknown;
     }
+    if (!_disposed) {
+      // Retain only the current immutable artifact's confirmation metadata.
+      _lastRemoteKey = _remoteKey(variant);
+      _lastRemoteMetadata = metadata;
+    }
+    return metadata;
   }
+
+  (String, String, String)? _remoteKey(GgufVariant variant) =>
+      variant.files.isEmpty
+      ? null
+      : (variant.repository, variant.revision, variant.files.first.name);
 
   Future<ModelDownloadJob> download(
     HubModelSummary model,
     GgufVariant variant,
   ) async {
     _requireActive();
+    final cached = _remoteKey(variant) == _lastRemoteKey
+        ? _lastRemoteMetadata
+        : null;
+    final metadata = cached ?? await inspectRemote(variant);
+    _requireActive();
+    final rejection = metadata.textChatRejection;
+    if (rejection != null) throw FormatException(rejection);
     var job = await _downloads.enqueue(model: model, variant: variant);
     _requireActive();
     _jobs = [job, ..._jobs.where((existing) => existing.id != job.id)];

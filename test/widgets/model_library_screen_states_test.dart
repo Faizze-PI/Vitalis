@@ -18,6 +18,7 @@ const _model = HubModelSummary(
 );
 
 class _Library extends ChangeNotifier implements ModelLibraryProvider {
+  RemoteGgufMetadata remoteMetadata = RemoteGgufMetadata.unknown;
   @override
   bool get isImporting => false;
   final downloadGate = Completer<ModelDownloadJob>();
@@ -60,7 +61,7 @@ class _Library extends ChangeNotifier implements ModelLibraryProvider {
   );
   @override
   Future<RemoteGgufMetadata> inspectRemote(GgufVariant variant) async =>
-      RemoteGgufMetadata.unknown;
+      remoteMetadata;
   @override
   Future<ModelDownloadJob> download(
     HubModelSummary model,
@@ -96,15 +97,25 @@ class _Library extends ChangeNotifier implements ModelLibraryProvider {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-Future<void> _openSearch(WidgetTester tester, _Library library) async {
+Future<void> _openSearch(
+  WidgetTester tester,
+  _Library library, {
+  double textScale = 1,
+}) async {
   await tester.pumpWidget(
     ChangeNotifierProvider<ModelLibraryProvider>.value(
       value: library,
-      child: const MaterialApp(home: ModelLibraryScreen()),
+      child: MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(textScale)),
+          child: child!,
+        ),
+        home: const ModelLibraryScreen(),
+      ),
     ),
   );
-  await tester.pumpAndSettle();
-  await tester.tap(find.text('Browse'));
   await tester.pumpAndSettle();
 }
 
@@ -230,6 +241,58 @@ void main() {
     await tester.tap(find.text('Installed'));
     await tester.pumpAndSettle();
     expect(find.text('Import Local GGUF'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('download confirmation remains usable with large text', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(420, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final library = _Library();
+    addTearDown(library.dispose);
+    await _openSearch(tester, library, textScale: 2);
+    await tester.ensureVisible(find.text(_model.id));
+    await tester.tap(find.text(_model.id));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Test GGUF'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(
+      find.widgetWithText(FilledButton, 'Download').hitTestable(),
+      findsOneWidget,
+    );
+    expect(find.text('Cancel').hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('known non-chat GGUF disables download despite fitting memory', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1000, 2200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final library = _Library()
+      ..remoteMetadata = const RemoteGgufMetadata(
+        complete: true,
+        architecture: 'clip',
+      );
+    addTearDown(library.dispose);
+    await _openSearch(tester, library);
+    await tester.tap(find.text(_model.id));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Test GGUF'));
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .widget<FilledButton>(find.widgetWithText(FilledButton, 'Download'))
+          .onPressed,
+      isNull,
+    );
+    expect(find.textContaining('cannot be used for text chat'), findsOneWidget);
+    expect(library.storedJobs, isEmpty);
     expect(tester.takeException(), isNull);
   });
 
