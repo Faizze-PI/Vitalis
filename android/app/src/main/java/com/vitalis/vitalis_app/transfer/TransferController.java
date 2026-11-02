@@ -21,8 +21,12 @@ public final class TransferController {
     private final TransferManifestStore store;
 
     public TransferController(Context context) {
+        this(context, new TransferManifestStore(context.getApplicationContext()));
+    }
+
+    TransferController(Context context, TransferManifestStore store) {
         this.context = context.getApplicationContext();
-        store = new TransferManifestStore(this.context);
+        this.store = store;
     }
 
     public void register(BinaryMessenger messenger) {
@@ -183,14 +187,16 @@ public final class TransferController {
     }
 
     public void acknowledgeStop(String transferId) throws Exception {
-        TransferManifest current = store.read(transferId);
-        if (current == null) return;
-        File partial = boundedPartial(current.partialPath);
-        try (TransferWriterLease lease = TransferWriterLease.tryAcquire(partial)) {
-            if (lease == null) return;
-            if (TransferRunControl.hasPendingConnection(context, transferId)) return;
-            acknowledgeStoppedWriter(transferId, partial);
-        }
+        TransferRunControl.acknowledgeStop(context, transferId, () -> {
+            TransferManifest current = store.read(transferId);
+            if (current == null) return;
+            File partial = boundedPartial(current.partialPath);
+            try (TransferWriterLease lease = TransferWriterLease.tryAcquire(partial)) {
+                if (lease == null) return;
+                if (TransferRunControl.hasPendingConnection(context, transferId)) return;
+                acknowledgeStoppedWriter(transferId, partial);
+            }
+        });
     }
 
     public boolean recordSchedulerStop(String transferId, int reason, long generation) {

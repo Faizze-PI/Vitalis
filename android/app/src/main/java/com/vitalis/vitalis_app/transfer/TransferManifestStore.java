@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 /** Persists transfer state with fsync and same-directory atomic replacement. */
-public final class TransferManifestStore {
+public class TransferManifestStore {
     private static final long MAX_MANIFEST_BYTES = 1024L * 1024L; // hardcode: HC-065
     private static final ConcurrentHashMap<String, ReentrantLock> LOCKS = new ConcurrentHashMap<>();
     private final File directory;
