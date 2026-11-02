@@ -19,6 +19,7 @@ import 'package:vitalis_app/services/model_update_service.dart';
 import 'package:vitalis_app/models/model_verification_phase.dart';
 import 'package:vitalis_app/models/startup_capabilities.dart';
 import 'package:vitalis_app/services/selected_model_readiness.dart';
+import 'package:vitalis_app/services/remote_gguf_inspector.dart';
 
 const model = ModelDescriptor(
   id: 'fixture',
@@ -27,6 +28,95 @@ const model = ModelDescriptor(
   compatibilityStatus: 'compatible',
 );
 void main() {
+  for (final inspectedFirst in [false, true]) {
+    test(
+      'known non-chat GGUF cannot enqueue inspectedFirst=$inspectedFirst',
+      () async {
+        final downloads = _WorkingDownloads();
+        final inspector = _RemoteMetadataInspector(
+          const RemoteGgufMetadata(complete: true, architecture: 'clip'),
+        );
+        final library = ModelLibraryProvider(
+          hub: _Hub(),
+          registry: _Registry(),
+          downloads: downloads,
+          remoteInspector: inspector,
+        );
+        addTearDown(library.dispose);
+        if (inspectedFirst) await library.inspectRemote(library.bundledVariant);
+        await expectLater(
+          library.download(
+            library.bundledRecommendation,
+            library.bundledVariant,
+          ),
+          throwsFormatException,
+        );
+        expect(downloads.enqueued, isEmpty);
+        expect(inspector.reads, 1);
+      },
+    );
+  }
+
+  for (final changed in ['repository', 'revision', 'file']) {
+    test('remote confirmation is scoped to immutable $changed', () async {
+      final downloads = _WorkingDownloads();
+      final inspector = _RemoteMetadataInspector(RemoteGgufMetadata.unknown);
+      final library = ModelLibraryProvider(
+        hub: _Hub(),
+        registry: _Registry(),
+        downloads: downloads,
+        remoteInspector: inspector,
+      );
+      addTearDown(library.dispose);
+      final original = library.bundledVariant;
+      await library.inspectRemote(original);
+      inspector.metadata = const RemoteGgufMetadata(
+        complete: true,
+        architecture: 'clip',
+      );
+      final changedVariant = GgufVariant(
+        repository: changed == 'repository'
+            ? 'other/publisher'
+            : original.repository,
+        revision: changed == 'revision'
+            ? 'another-revision'
+            : original.revision,
+        displayName: original.displayName,
+        files: changed == 'file'
+            ? [const GgufFile(name: 'projector.gguf', sizeBytes: 1024)]
+            : original.files,
+      );
+      await expectLater(
+        library.download(library.bundledRecommendation, changedVariant),
+        throwsFormatException,
+      );
+      expect(inspector.reads, 2);
+      expect(downloads.enqueued, isEmpty);
+    });
+  }
+
+  test('disposal during remote inspection cannot enqueue a download', () async {
+    final downloads = _WorkingDownloads();
+    final inspector = _RemoteMetadataInspector(RemoteGgufMetadata.unknown)
+      ..release = Completer<RemoteGgufMetadata>();
+    final library = ModelLibraryProvider(
+      hub: _Hub(),
+      registry: _Registry(),
+      downloads: downloads,
+      remoteInspector: inspector,
+    );
+    final operation = library.download(
+      library.bundledRecommendation,
+      library.bundledVariant,
+    );
+    final observed = expectLater(operation, throwsStateError);
+    await inspector.entered.future;
+    library.dispose();
+    inspector.release!.complete(RemoteGgufMetadata.unknown);
+    await observed;
+    expect(downloads.enqueued, isEmpty);
+  });
+
   test('failed import clears busy state and permits retry', () async {
     final gate = _CompletionGate();
     final library = ModelLibraryProvider(
@@ -406,6 +496,7 @@ void main() {
         hub: _Hub(),
         registry: registry,
         downloads: downloads,
+        remoteInspector: _RemoteMetadataInspector(RemoteGgufMetadata.unknown),
         updates: _GatedUpdates(downloads.original, gate),
       );
       final Future<dynamic> operation = switch (action) {
@@ -828,6 +919,7 @@ void main() {
         hub: _Hub(),
         registry: registry,
         downloads: downloads,
+        remoteInspector: _RemoteMetadataInspector(RemoteGgufMetadata.unknown),
       );
       addTearDown(library.dispose);
       await library.initialize();
@@ -1047,6 +1139,20 @@ class _Downloads implements ModelDownloadManager {
   dynamic noSuchMethod(Invocation invocation) {
     unexpectedCalls++;
     throw StateError('Unexpected download operation');
+  }
+}
+
+class _RemoteMetadataInspector implements RemoteGgufInspector {
+  _RemoteMetadataInspector(this.metadata);
+  RemoteGgufMetadata metadata;
+  Completer<RemoteGgufMetadata>? release;
+  final entered = Completer<void>();
+  int reads = 0;
+  @override
+  Future<RemoteGgufMetadata> inspect(Uri source) async {
+    reads++;
+    if (!entered.isCompleted) entered.complete();
+    return release == null ? metadata : await release!.future;
   }
 }
 

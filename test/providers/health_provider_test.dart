@@ -71,6 +71,18 @@ class _UnsafeSentinel implements HardwareSentinelService {
 
 void main() {
   group('HealthProvider', () {
+    test('pending RSS refresh does not notify after disposal', () async {
+      final provider = HealthProvider(sentinel: _MockSentinel());
+      var notifications = 0;
+      provider.addListener(() => notifications++);
+
+      provider.dispose();
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      expect(notifications, 0);
+      expect(provider.rssMb, 0);
+    });
+
     test('initial state reflects sentinel values', () {
       final provider = HealthProvider(sentinel: _MockSentinel());
       expect(provider.batteryLevel, 85);

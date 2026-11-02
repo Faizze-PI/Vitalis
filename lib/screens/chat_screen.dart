@@ -42,6 +42,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _disposed = false;
   ChatProvider? _chatProvider;
   GenerationProvider? _generationProvider;
+  int? _scrollChatId;
   String? _modelLabelId;
   Future<ModelDescriptor?>? _modelLabelLookup;
 
@@ -108,6 +109,7 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     _chatProvider = context.read<ChatProvider>();
     _generationProvider = context.read<GenerationProvider>();
+    _scrollChatId = _chatProvider!.currentChat?.id;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final provider = _chatProvider;
       if (provider == null) return;
@@ -152,7 +154,10 @@ class _ChatScreenState extends State<ChatScreen> {
   void _onProviderChange() {
     if (_disposed || !mounted) return;
     final gen = context.read<GenerationProvider>();
-    if (gen.isSending) {
+    final chatId = _chatProvider?.currentChat?.id;
+    final changedChat = chatId != _scrollChatId;
+    _scrollChatId = chatId;
+    if (changedChat || gen.isSending) {
       _scrollToBottom();
     }
   }
@@ -161,7 +166,7 @@ class _ChatScreenState extends State<ChatScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
-          _scrollController.position.maxScrollExtent,
+          _scrollController.position.minScrollExtent,
           duration: const Duration(milliseconds: 100),
           curve: Curves.easeOut,
         );
@@ -414,6 +419,12 @@ class _ChatScreenState extends State<ChatScreen> {
               !isSending &&
               generationProvider.lastTps > 0 &&
               chatProvider.messages.isNotEmpty;
+          final historyItemCount =
+              chatProvider.messages.length +
+              (isSending && streamText.isNotEmpty ? 1 : 0) +
+              (showThinking ? 1 : 0) +
+              (showTps ? 1 : 0) +
+              (chatProvider.hasOlderMessages ? 1 : 0);
 
           final isGenerating = status == ChatStatus.generating;
           final healthProvider = context.watch<HealthProvider>();
@@ -670,16 +681,14 @@ class _ChatScreenState extends State<ChatScreen> {
                             )
                           : ListView.builder(
                               controller: _scrollController,
+                              reverse: true,
                               padding: const EdgeInsets.all(AppMetrics.spaceMd),
-                              itemCount:
-                                  chatProvider.messages.length +
-                                  (isSending && streamText.isNotEmpty ? 1 : 0) +
-                                  (showThinking ? 1 : 0) +
-                                  (showTps ? 1 : 0) +
-                                  (chatProvider.hasOlderMessages ? 1 : 0),
+                              itemCount: historyItemCount,
                               itemBuilder: (context, index) {
+                                final chronologicalIndex =
+                                    historyItemCount - index - 1;
                                 if (chatProvider.hasOlderMessages &&
-                                    index == 0) {
+                                    chronologicalIndex == 0) {
                                   return Padding(
                                     padding: const EdgeInsets.only(
                                       bottom: AppMetrics.spaceSm,
@@ -697,8 +706,8 @@ class _ChatScreenState extends State<ChatScreen> {
                                 }
                                 final adjustedIndex =
                                     chatProvider.hasOlderMessages
-                                    ? index - 1
-                                    : index;
+                                    ? chronologicalIndex - 1
+                                    : chronologicalIndex;
                                 final streamingIndex =
                                     chatProvider.messages.length;
                                 if (showThinking &&

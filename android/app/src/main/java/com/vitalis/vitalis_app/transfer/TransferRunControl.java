@@ -59,6 +59,21 @@ final class TransferRunControl {
 
     synchronized boolean ownsGeneration(long value) { return generation == value; }
 
+    interface StopAcknowledgement {
+        void run() throws Exception;
+    }
+
+    static void acknowledgeStop(Context context, String transferId, StopAcknowledgement acknowledgement)
+            throws Exception {
+        TransferRunControl control = RUNS.get(key(context, transferId));
+        if (control == null) {
+            acknowledgement.run();
+            return;
+        }
+        // Worker and controller share settlement after the writer lease is released.
+        synchronized (control) { acknowledgement.run(); }
+    }
+
     static boolean hasPendingConnection(Context context, String transferId) {
         TransferRunControl control = RUNS.get(key(context, transferId));
         if (control == null) return false;

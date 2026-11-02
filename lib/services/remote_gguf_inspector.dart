@@ -29,6 +29,20 @@ class RemoteGgufMetadata {
   final String? chatTemplate;
   final int? trainingContext;
 
+  String? get textChatRejection {
+    if (!complete) return null;
+    if (architecture?.trim().isNotEmpty != true) {
+      return 'This GGUF has no model architecture metadata.';
+    }
+    if (tokenizer?.trim().isNotEmpty != true) {
+      return 'This GGUF has no tokenizer and cannot be used for text chat.';
+    }
+    if (chatTemplate?.trim().isNotEmpty != true) {
+      return 'This GGUF has no chat template and cannot be used for text chat.';
+    }
+    return null;
+  }
+
   static const unknown = RemoteGgufMetadata(complete: false);
 }
 

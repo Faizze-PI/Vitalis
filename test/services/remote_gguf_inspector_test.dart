@@ -7,6 +7,46 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:vitalis_app/services/remote_gguf_inspector.dart';
 
 void main() {
+  test('only complete metadata can reject a remote text-chat artifact', () {
+    expect(RemoteGgufMetadata.unknown.textChatRejection, isNull);
+    expect(
+      const RemoteGgufMetadata(
+        complete: false,
+        architecture: 'clip',
+      ).textChatRejection,
+      isNull,
+    );
+    expect(
+      const RemoteGgufMetadata(complete: true).textChatRejection,
+      contains('architecture'),
+    );
+    expect(
+      const RemoteGgufMetadata(
+        complete: true,
+        architecture: 'clip',
+      ).textChatRejection,
+      contains('tokenizer'),
+    );
+    expect(
+      const RemoteGgufMetadata(
+        complete: true,
+        architecture: 'qwen2',
+        tokenizer: 'gpt2',
+        chatTemplate: ' ',
+      ).textChatRejection,
+      contains('template'),
+    );
+    expect(
+      const RemoteGgufMetadata(
+        complete: true,
+        architecture: 'qwen2',
+        tokenizer: 'gpt2',
+        chatTemplate: '{{ messages }}',
+      ).textChatRejection,
+      isNull,
+    );
+  });
+
   test(
     'HTTP reader bounds streamed ignored-Range responses before buffering',
     () async {

@@ -113,24 +113,21 @@ class _ChatHistoryModalState extends State<ChatHistoryModal> {
                                     color: Colors.green,
                                   ),
                                 ),
-                              Semantics(
-                                label:
+                              IconButton(
+                                tooltip:
                                     '${AppStrings.deleteChat}: ${chat.title}',
-                                button: true,
-                                child: IconButton(
-                                  icon: const Icon(
-                                    Icons.delete_outline,
-                                    size: 20,
-                                  ),
-                                  onPressed:
-                                      !canMutate ||
-                                          _pendingDeletions.contains(chat.id)
-                                      ? null
-                                      : () => _confirmDeletion(
-                                          chatProvider,
-                                          chat.id!,
-                                        ),
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  size: 20,
                                 ),
+                                onPressed:
+                                    !canMutate ||
+                                        _pendingDeletions.contains(chat.id)
+                                    ? null
+                                    : () => _confirmDeletion(
+                                        chatProvider,
+                                        chat.id!,
+                                      ),
                               ),
                             ],
                           ),

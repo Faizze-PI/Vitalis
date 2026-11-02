@@ -403,6 +403,88 @@ public class TransferEngineTest {
     }
 
     @Test
+    public void cancelSharesAcknowledgementWithCompetingCleanup() throws Exception {
+        assertCompetingStopAcknowledgement(true);
+    }
+
+    @Test
+    public void pauseSharesAcknowledgementWithCompetingCleanup() throws Exception {
+        assertCompetingStopAcknowledgement(false);
+    }
+
+    private void assertCompetingStopAcknowledgement(boolean cancel) throws Exception {
+        Files.createDirectories(partial.getParentFile().toPath());
+        Files.write(partial.toPath(), new byte[] {112});
+        store.write(manifest(3L, null));
+        BlockingReadConnection connection = new BlockingReadConnection();
+        CountDownLatch acknowledgementEntered = new CountDownLatch(1);
+        CountDownLatch finishAcknowledgement = new CountDownLatch(1);
+        java.util.concurrent.atomic.AtomicReference<Thread> worker = new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicReference<Future<?>> acknowledgement = new java.util.concurrent.atomic.AtomicReference<>();
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        TransferManifestStore delayedStore = new TransferManifestStore(context) {
+            @Override public TransferManifest update(String id, Transition transition) throws Exception {
+                acknowledgementEntered.countDown();
+                assertTrue(finishAcknowledgement.await(10, TimeUnit.SECONDS));
+                return super.update(id, transition);
+            }
+        };
+        TransferManifestStore observedStore = new TransferManifestStore(context) {
+            @Override public TransferManifest read(String id) throws Exception {
+                TransferManifest value = super.read(id);
+                if (Thread.currentThread() == worker.get() && connection.disconnected
+                        && value != null && !value.stopAcknowledged && acknowledgement.get() == null) {
+                    acknowledgement.set(executor.submit(() -> {
+                        new TransferController(context, delayedStore).acknowledgeStop(id);
+                        return null;
+                    }));
+                    assertTrue(acknowledgementEntered.await(10, TimeUnit.SECONDS));
+                }
+                return value;
+            }
+        };
+        TransferEngine engine = new TransferEngine(context, observedStore, ignored -> connection,
+                ignored -> {}, () -> 1_000L);
+        Future<TransferExecutionResult> result = executor.submit(() -> {
+            worker.set(Thread.currentThread());
+            try {
+                return engine.run("engine-test", ignored -> {});
+            } finally {
+                Thread.interrupted();
+            }
+        });
+        try {
+            assertTrue(connection.readEntered.await(10, TimeUnit.SECONDS));
+            store.update("engine-test", current -> current.withStopRequest(cancel));
+            assertTrue(TransferRunControl.requestStop(context, "engine-test"));
+            assertTrue(acknowledgementEntered.await(10, TimeUnit.SECONDS));
+            try {
+                TransferExecutionResult early = result.get(200, TimeUnit.MILLISECONDS);
+                org.junit.Assert.fail("writer returned before shared acknowledgement: " + early);
+            } catch (TimeoutException expected) {
+                // Both callers must observe the same durable cleanup outcome.
+            }
+            org.junit.Assert.assertFalse(store.read("engine-test").stopAcknowledged);
+            finishAcknowledgement.countDown();
+            acknowledgement.get().get(10, TimeUnit.SECONDS);
+            assertEquals(cancel ? TransferExecutionResult.CANCELLED : TransferExecutionResult.PAUSED,
+                    result.get(10, TimeUnit.SECONDS));
+            assertTrue(store.read("engine-test").stopAcknowledged);
+            assertEquals(!cancel, partial.exists());
+        } finally {
+            connection.release.countDown();
+            finishAcknowledgement.countDown();
+            try {
+                result.get(10, TimeUnit.SECONDS);
+                if (acknowledgement.get() != null) acknowledgement.get().get(10, TimeUnit.SECONDS);
+            } finally {
+                executor.shutdownNow();
+                executor.awaitTermination(10, TimeUnit.SECONDS);
+            }
+        }
+    }
+
+    @Test
     public void interruptedTransportRemainsResumableAndReleasesWriterOwnership() throws Exception {
         assertInterruptedTransportCleanup(0);
     }
