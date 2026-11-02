@@ -7,6 +7,7 @@ class HealthProvider extends ChangeNotifier {
   final HardwareSentinelService _sentinel;
   Timer? _timer;
   int _rssMb = 0;
+  bool _disposed = false;
 
   HealthProvider({required HardwareSentinelService sentinel})
     : _sentinel = sentinel {
@@ -25,6 +26,7 @@ class HealthProvider extends ChangeNotifier {
 
   Future<void> _refresh() async {
     final rss = await MemoryMonitor.getRssMb();
+    if (_disposed) return;
     if (rss != _rssMb) {
       _rssMb = rss < 0 ? 0 : rss;
       notifyListeners();
@@ -33,6 +35,7 @@ class HealthProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _timer?.cancel();
     super.dispose();
   }
