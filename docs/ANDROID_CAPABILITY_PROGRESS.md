@@ -3,6 +3,13 @@
 Updated 3 November 2026. Status applies to the expanded attachment/vision/tool/ONNX
 programme, not to the already implemented text-chat application.
 
+Working-first update: the user prioritized local files and custom algorithms.
+The local workspace now has import/storage, text previews and removal implemented
+with focused tests; Android phone verification is pending. It is not yet chat
+attachment support. A numeric ONNX/CSV reference graph passed on the development
+host; the Android runner remains pending. See
+[the file/task slice](features/local-files-and-custom-tasks.md).
+
 Foundation correction `1cb3d25`: acknowledged Stop preserves admitted partial text
 through the existing response-save path; follow-up admission waits for pending
 persistence; conversation changes clear the old context warning. The reproductions
@@ -16,7 +23,7 @@ two defects physically.
 |---|---|---|
 | 1. Backend compatibility | In progress | Locked mtmd compiled for API 28/arm64, exported image-processing symbols inspected. ONNX AAR/Java/minSdk/native dependencies inspected. Actual image encoding, tools round trip, ONNX execution and cancellation remain unproven. |
 | 2. Capability/storage contracts | Not started | Depends on backend proof; preserve the existing version-8 database. |
-| 3. File attachments | Not started | Existing attached notes are not file attachments. |
+| 3. File attachments | Local workspace in progress | Import/storage and bounded text previews implemented; chat associations, image previews and phone verification pending. |
 | 4. Complete model bundles | Not started | Candidate base/projector pair is hash-pinned for probes; app imports still support text GGUF only. |
 | 5. Vision inference | Not started | A compiled library is not image inference. |
 | 6. PDF/OCR/citations | Not started | Requires bounded extraction and qualified offline OCR. |

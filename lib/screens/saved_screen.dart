@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'modals/notes_list_selection_modal.dart';
 import 'modals/persona_selection_modal.dart';
+import 'file_workspace_screen.dart';
 
 class SavedScreen extends StatelessWidget {
   const SavedScreen({super.key});
@@ -19,6 +20,19 @@ class SavedScreen extends StatelessWidget {
     body: ListView(
       padding: const EdgeInsets.all(16),
       children: [
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.folder_open),
+            title: const Text('Files and algorithms'),
+            subtitle: const Text('Import local inputs for compatible tasks'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const FileWorkspaceScreen(),
+              ),
+            ),
+          ),
+        ),
         const Padding(
           padding: EdgeInsets.only(bottom: 16),
           child: Text(
