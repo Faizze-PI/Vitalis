@@ -2,12 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 import '../services/local_file_workspace.dart';
 import '../services/startup_access_guard.dart';
-import '../services/model_storage_preflight.dart';
 import 'custom_task_screen.dart';
+import '../database/database_helper.dart';
 
 typedef WorkspaceSelection = ({
   String name,
@@ -16,24 +15,23 @@ typedef WorkspaceSelection = ({
 });
 
 class FileWorkspaceScreen extends StatefulWidget {
-  const FileWorkspaceScreen({super.key, this.workspace, this.pick});
+  const FileWorkspaceScreen({
+    super.key,
+    this.workspace,
+    this.pick,
+    this.onSelect,
+    this.isReferenced,
+  });
   final InputWorkspaceStore? workspace;
   final Future<WorkspaceSelection?> Function()? pick;
+  final ValueChanged<WorkspaceFile>? onSelect;
+  final Future<bool> Function(String fileId)? isReferenced;
   @override
   State<FileWorkspaceScreen> createState() => _FileWorkspaceScreenState();
 }
 
 class _FileWorkspaceScreenState extends State<FileWorkspaceScreen> {
-  late final _workspace =
-      widget.workspace ??
-      LocalFileWorkspace(
-        root: () async => Directory(
-          '${(await getApplicationSupportDirectory()).path}/input_workspace',
-        ),
-        availableBytes: () async =>
-            await queryAllocatableModelStorage() ??
-            (throw const WorkspaceImportException('storage_unknown')),
-      );
+  late final _workspace = widget.workspace ?? LocalFileWorkspace.application();
   List<WorkspaceFile>? _files;
   bool _busy = false;
   String? _error;
@@ -188,13 +186,24 @@ class _FileWorkspaceScreenState extends State<FileWorkspaceScreen> {
     setState(() => _busy = true);
     try {
       _admit();
+      final referenced =
+          await (widget.isReferenced ??
+              (id) async =>
+                  await DatabaseHelper.instance.fileAttachmentCount(id) > 0)(
+            item.id,
+          );
+      if (referenced)
+        throw const WorkspaceImportException('referenced_by_chat');
       await _workspace.remove(item.id);
       await _refresh();
-    } catch (_) {
+    } catch (error) {
       if (mounted)
         setState(
           () => _error =
-              'The copy could not be removed. Retry when it is not in use.',
+              error is WorkspaceImportException &&
+                  error.code == 'referenced_by_chat'
+              ? 'This file is attached to a chat. Detach it there before removing this copy.'
+              : 'The copy could not be removed. Retry when it is not in use.',
         );
     } finally {
       if (mounted) setState(() => _busy = false);
@@ -217,23 +226,24 @@ class _FileWorkspaceScreenState extends State<FileWorkspaceScreen> {
             icon: const Icon(Icons.upload_file),
             label: const Text('Import file'),
           ),
-          OutlinedButton.icon(
-            onPressed: _busy || (_files?.isEmpty ?? true)
-                ? null
-                : () async {
-                    await Navigator.of(context).push<void>(
-                      MaterialPageRoute(
-                        builder: (_) => CustomTaskScreen(
-                          workspace: _workspace,
-                          files: List.unmodifiable(_files!),
+          if (widget.onSelect == null)
+            OutlinedButton.icon(
+              onPressed: _busy || (_files?.isEmpty ?? true)
+                  ? null
+                  : () async {
+                      await Navigator.of(context).push<void>(
+                        MaterialPageRoute(
+                          builder: (_) => CustomTaskScreen(
+                            workspace: _workspace,
+                            files: List.unmodifiable(_files!),
+                          ),
                         ),
-                      ),
-                    );
-                    if (mounted) await _refresh();
-                  },
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('Run custom algorithm'),
-          ),
+                      );
+                      if (mounted) await _refresh();
+                    },
+              icon: const Icon(Icons.play_arrow),
+              label: const Text('Run custom algorithm'),
+            ),
           if (_busy || (_files == null && _error == null))
             const LinearProgressIndicator(
               semanticsLabel: 'Copying or reading local files',
@@ -251,10 +261,21 @@ class _FileWorkspaceScreenState extends State<FileWorkspaceScreen> {
               title: Text(item.name),
               subtitle: Text('${item.bytes} bytes • Stored locally'),
               onTap: _busy ? null : () => _preview(item),
-              trailing: IconButton(
-                tooltip: 'Remove imported file ${item.name}',
-                onPressed: _busy ? null : () => _remove(item),
-                icon: const Icon(Icons.delete_outline),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.onSelect != null)
+                    IconButton(
+                      tooltip: 'Attach file ${item.name}',
+                      onPressed: _busy ? null : () => widget.onSelect!(item),
+                      icon: const Icon(Icons.attach_file),
+                    ),
+                  IconButton(
+                    tooltip: 'Remove imported file ${item.name}',
+                    onPressed: _busy ? null : () => _remove(item),
+                    icon: const Icon(Icons.delete_outline),
+                  ),
+                ],
               ),
             ),
         ],

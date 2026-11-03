@@ -1,3 +1,4 @@
+import 'package:vitalis_app/models/workspace_file.dart';
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -203,6 +204,8 @@ final class _CompletionBeforeSendDatabase extends _Database {
 }
 
 final class _Database implements DatabaseHelper {
+  @override
+  Future<List<WorkspaceFile>> getAttachedFiles(int chatId) async => [];
   final writeEntered = Completer<void>();
   final writeRelease = Completer<void>();
   final events = <String>[];

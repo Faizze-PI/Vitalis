@@ -2,7 +2,11 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'package:crypto/crypto.dart';
+import 'package:path_provider/path_provider.dart';
+import 'model_storage_preflight.dart';
 import '../models/model_library_policy.dart';
+import '../models/workspace_file.dart';
+export '../models/workspace_file.dart';
 
 abstract final class InputWorkspacePolicy {
   static const metadataBytes = 64 * 1024; // hardcode: HC-077
@@ -15,23 +19,6 @@ final class WorkspaceImportException implements Exception {
   final String code;
   @override
   String toString() => 'File operation failed ($code)';
-}
-
-final class WorkspaceFile {
-  const WorkspaceFile({
-    required this.id,
-    required this.name,
-    required this.bytes,
-    required this.sha256,
-  });
-  final String id, name, sha256;
-  final int bytes;
-  Map<String, Object> toJson() => {
-    'id': id,
-    'name': name,
-    'bytes': bytes,
-    'sha256': sha256,
-  };
 }
 
 /// Immutable app-owned copies. Original picker files are never changed.
@@ -48,6 +35,16 @@ abstract interface class InputWorkspaceStore {
 }
 
 final class LocalFileWorkspace implements InputWorkspaceStore {
+  static LocalFileWorkspace? _application;
+  factory LocalFileWorkspace.application() =>
+      _application ??= LocalFileWorkspace(
+        root: () async => Directory(
+          '${(await getApplicationSupportDirectory()).path}/input_workspace',
+        ),
+        availableBytes: () async =>
+            await queryAllocatableModelStorage() ??
+            (throw const WorkspaceImportException('storage_unknown')),
+      );
   LocalFileWorkspace({
     required this.root,
     required this.availableBytes,

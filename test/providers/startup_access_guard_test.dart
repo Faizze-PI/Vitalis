@@ -1,3 +1,4 @@
+import 'package:vitalis_app/models/workspace_file.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vitalis_app/database/database_helper.dart';
 import 'package:vitalis_app/models/note.dart';
@@ -155,6 +156,8 @@ void main() {
 }
 
 final class _ReadDatabase implements DatabaseHelper {
+  @override
+  Future<List<WorkspaceFile>> getAttachedFiles(int chatId) async => [];
   int reads = 0;
   int unexpectedCalls = 0;
   @override

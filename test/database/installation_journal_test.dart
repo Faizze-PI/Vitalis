@@ -30,7 +30,7 @@ void main() {
   });
 
   Future<void> expectJournalSchema(Database db) async {
-    expect(await db.getVersion(), 8);
+    expect(await db.getVersion(), AppConstants.databaseVersion);
     final tables = await db.rawQuery(
       "SELECT name FROM sqlite_master WHERE type = 'table'",
     );

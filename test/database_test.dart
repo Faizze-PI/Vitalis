@@ -1,3 +1,4 @@
+import 'package:vitalis_app/models/workspace_file.dart';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vitalis_app/database/database_helper.dart';
@@ -742,6 +743,7 @@ final class _PersonaGeneration implements GenerationProvider {
     required ModelSettings settings,
     Persona? persona,
     List<Note> attachedNotes = const [],
+    List<WorkspaceFile> attachedFiles = const [],
   }) async {
     called = true;
     received = persona;

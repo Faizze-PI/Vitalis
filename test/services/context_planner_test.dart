@@ -4,6 +4,7 @@ import 'package:vitalis_app/models/model_settings.dart';
 import 'package:vitalis_app/models/note.dart';
 import 'package:vitalis_app/models/runtime_profile.dart';
 import 'package:vitalis_app/services/context_planner.dart';
+import 'package:vitalis_app/models/file_context.dart';
 
 class _ExactCounter implements ContextTokenCounter {
   bool? thinkingEnabled;
@@ -39,6 +40,34 @@ Message _message(MessageRole role, String content) =>
     Message(chatId: 1, role: role, content: content);
 
 void main() {
+  test(
+    'counts selected file text and reports files excluded by context',
+    () async {
+      final planner = ContextPlanner(_ExactCounter());
+      final files = [
+        const FileContext(name: 'fact.txt', text: 'The test code is 731.'),
+      ];
+      final included = await planner.plan(
+        systemPrompt: 'System',
+        attachedNotes: [],
+        attachedFiles: files,
+        messages: [_message(MessageRole.user, 'What code?')],
+        profile: _profile(context: 500),
+      );
+      expect(included.context.first['content'], contains('731'));
+      expect(included.droppedFileNames, isEmpty);
+      final excluded = await planner.plan(
+        systemPrompt: 'System',
+        attachedNotes: [],
+        attachedFiles: files,
+        messages: [_message(MessageRole.user, 'What code?')],
+        profile: _profile(context: 35),
+      );
+      expect(excluded.droppedFileNames, ['fact.txt']);
+      expect(excluded.context.first['content'], isNot(contains('731')));
+      expect(excluded.wasTruncated, isTrue);
+    },
+  );
   test(
     'large requested output remains bounded by exact available context',
     () async {

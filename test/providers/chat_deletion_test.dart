@@ -1,3 +1,4 @@
+import 'package:vitalis_app/models/workspace_file.dart';
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -216,6 +217,8 @@ final class _WaitingGeneration implements GenerationProvider {
 }
 
 final class _FailingDatabase implements DatabaseHelper {
+  @override
+  Future<List<WorkspaceFile>> getAttachedFiles(int chatId) async => [];
   int attempts = 0;
   int refreshAttempts = 0;
   Completer<int>? gate;

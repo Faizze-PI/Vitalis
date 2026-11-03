@@ -112,7 +112,7 @@ class _ChatInputFieldState extends State<ChatInputField> {
               children: [
                 if (widget.onAttach != null)
                   IconButton(
-                    tooltip: 'Attach note or choose persona',
+                    tooltip: 'Attach files, notes or choose persona',
                     onPressed: _isActive || _submitting
                         ? null
                         : widget.onAttach,

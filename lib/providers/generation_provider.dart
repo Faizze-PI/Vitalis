@@ -11,6 +11,9 @@ import 'package:llm_llamacpp/src/runtime_shutdown_waiter.dart';
 import '../models/message.dart';
 import '../models/persona.dart';
 import '../models/note.dart';
+import '../models/workspace_file.dart';
+import '../models/file_context.dart';
+import '../services/attached_file_reader.dart';
 import '../models/model_settings.dart';
 import '../models/context_plan_result.dart';
 import '../services/chat_state_controller.dart';
@@ -26,6 +29,7 @@ class GenerationProvider extends ChangeNotifier {
   final ChatStateController _controller;
   final ModelWarmupService _warmup;
   final StartupAccessGuard? _startupAccess;
+  final AttachedFileReader _fileReader;
   final StringBuffer _genBuffer = StringBuffer();
   final _ownerRecovery = RuntimeOwnerRecoveryGuard();
   final Duration shutdownTimeout;
@@ -67,12 +71,14 @@ class GenerationProvider extends ChangeNotifier {
     required ChatStateController controller,
     required ModelWarmupService warmup,
     StartupAccessGuard? startupAccess,
+    AttachedFileReader? fileReader,
     this.shutdownTimeout = RuntimeWatchdogDefaults.noProgressTimeout,
     this.shutdownTimerFactory = Timer.new,
     this.readShutdownMonotonicMicros,
     this.readOutputMonotonicMicros,
   }) : _controller = controller,
        _startupAccess = startupAccess,
+       _fileReader = fileReader ?? AttachedFileReader(),
        _warmup = warmup {
     _controller.onToken = _onToken;
     _controller.onComplete = _onGenerationComplete;
@@ -264,6 +270,7 @@ class GenerationProvider extends ChangeNotifier {
     required ModelSettings settings,
     Persona? persona,
     List<Note> attachedNotes = const [],
+    List<WorkspaceFile> attachedFiles = const [],
   }) async {
     _checkNewOperation();
     _stopRequested = false;
@@ -278,6 +285,7 @@ class GenerationProvider extends ChangeNotifier {
           settings: settings,
           persona: persona,
           attachedNotes: attachedNotes,
+          attachedFiles: attachedFiles,
         );
       });
     } catch (error) {
@@ -295,6 +303,7 @@ class GenerationProvider extends ChangeNotifier {
     required ModelSettings settings,
     Persona? persona,
     required List<Note> attachedNotes,
+    required List<WorkspaceFile> attachedFiles,
   }) async {
     await _warmup.cancelTuning();
     if (!_canContinue) return;
@@ -307,6 +316,21 @@ class GenerationProvider extends ChangeNotifier {
       return;
     }
 
+    late final List<FileContext> fileContext;
+    try {
+      fileContext = await _fileReader.read(attachedFiles);
+    } catch (error) {
+      if (!_canContinue) return;
+      _isSending = false;
+      _setError(
+        error is FileAttachmentReadError
+            ? error.message
+            : 'An attached file could not be read (${error.runtimeType}). Re-import or remove it before retrying.',
+      );
+      notifyListeners();
+      return;
+    }
+    if (!_canContinue) return;
     _lastSettings = settings;
     final profile = await _warmup.resolveProfile(settings);
     if (!_canContinue) return;
@@ -329,6 +353,7 @@ class GenerationProvider extends ChangeNotifier {
       ctx = await ContextPlanner(LlamaContextTokenCounter(repo)).plan(
         systemPrompt: persona?.systemPrompt ?? settings.systemPrompt,
         attachedNotes: attachedNotes,
+        attachedFiles: fileContext,
         messages: messages,
         profile: profile,
       );
@@ -344,6 +369,15 @@ class GenerationProvider extends ChangeNotifier {
       return;
     }
     if (!_canContinue) return;
+    if (ctx.droppedFileNames.isNotEmpty) {
+      _isSending = false;
+      _lastContextResult = null;
+      _setError(
+        'Attached files do not fit the selected model context: ${ctx.droppedFileNames.join(', ')}. Remove a file or select a larger context; no file was silently sent partially.',
+      );
+      notifyListeners();
+      return;
+    }
     _lastContextResult = ctx;
     _startupAccess?.require(StartupAccessOperation.inference);
     _truncationDismissed = false;

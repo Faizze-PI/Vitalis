@@ -3,6 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/message.dart';
 import '../models/note.dart';
+import '../models/workspace_file.dart';
+import '../widgets/attached_files_bar.dart';
+import 'file_workspace_screen.dart';
 import '../providers/chat_provider.dart';
 import '../providers/generation_provider.dart';
 import '../providers/health_provider.dart';
@@ -255,6 +258,11 @@ class _ChatScreenState extends State<ChatScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
+              leading: const Icon(Icons.attach_file),
+              title: const Text('Attach file'),
+              onTap: () => Navigator.pop(sheet, 'attach_file'),
+            ),
+            ListTile(
               leading: const Icon(Icons.note_add_outlined),
               title: const Text(AppStrings.attachNote),
               onTap: () => Navigator.pop(sheet, 'attach_note'),
@@ -297,6 +305,19 @@ class _ChatScreenState extends State<ChatScreen> {
             context: context,
             builder: (ctx) => const PersonaSelectionModal(),
           );
+        case 'attach_file':
+          final owner = chatProvider.currentChat?.id;
+          if (owner == null)
+            throw StateError('Select a chat before attaching a file');
+          final file = await Navigator.of(context).push<WorkspaceFile>(
+            MaterialPageRoute(
+              builder: (page) => FileWorkspaceScreen(
+                onSelect: (selected) => Navigator.of(page).pop(selected),
+              ),
+            ),
+          );
+          if (file != null && mounted && chatProvider.currentChat?.id == owner)
+            await chatProvider.attachFile(file);
         case 'attach_note':
           final note = await showModalBottomSheet<Note>(
             context: context,
@@ -795,6 +816,28 @@ class _ChatScreenState extends State<ChatScreen> {
                     ),
                   ),
 
+                  if (chatProvider.attachedFiles.isNotEmpty)
+                    AttachedFilesBar(
+                      files: chatProvider.attachedFiles,
+                      enabled: canInfer && !isSending,
+                      onRemove: (file) async {
+                        try {
+                          await chatProvider.detachFile(file.id);
+                        } catch (error) {
+                          AppLogger.instance.warning(
+                            'File detach failed (${error.runtimeType})',
+                          );
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'The file could not be detached. Please retry.',
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
                   if (chatProvider.attachedNotes.isNotEmpty ||
                       chatProvider.currentPersona != null)
                     AttachedNotesBar(

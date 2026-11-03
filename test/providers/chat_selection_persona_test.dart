@@ -1,3 +1,4 @@
+import 'package:vitalis_app/models/workspace_file.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'dart:async';
 import 'package:vitalis_app/models/model_descriptor.dart';
@@ -591,6 +592,8 @@ class _DelayedRegistry implements ModelRegistryService {
 }
 
 class _SelectionDatabase implements DatabaseHelper {
+  @override
+  Future<List<WorkspaceFile>> getAttachedFiles(int chatId) async => [];
   int createdChats = 0;
   @override
   Future<int> insertChatWithModel(

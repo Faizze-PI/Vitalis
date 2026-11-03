@@ -1,3 +1,4 @@
+import 'package:vitalis_app/models/workspace_file.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -703,6 +704,8 @@ final class _Warmup extends ChangeNotifier implements ModelWarmupService {
 }
 
 final class _Database implements DatabaseHelper {
+  @override
+  Future<List<WorkspaceFile>> getAttachedFiles(int chatId) async => [];
   final modelIds = <int, String>{};
   final modelNames = <String, String>{};
   final missingModels = <String>{};

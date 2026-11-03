@@ -5,6 +5,7 @@ class ContextPlanResult {
     required this.contextSize,
     this.droppedMessageCount = 0,
     this.droppedNoteCount = 0,
+    this.droppedFileNames = const [],
     this.reservedOutputTokens = 0,
   }) : usageRatio = contextSize > 0
            ? (promptTokens / contextSize).clamp(0.0, 1.0)
@@ -15,8 +16,12 @@ class ContextPlanResult {
   final int contextSize;
   final int droppedMessageCount;
   final int droppedNoteCount;
+  final List<String> droppedFileNames;
   final int reservedOutputTokens;
   final double usageRatio;
 
-  bool get wasTruncated => droppedMessageCount > 0 || droppedNoteCount > 0;
+  bool get wasTruncated =>
+      droppedMessageCount > 0 ||
+      droppedNoteCount > 0 ||
+      droppedFileNames.isNotEmpty;
 }

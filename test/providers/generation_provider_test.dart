@@ -13,6 +13,9 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vitalis_app/models/startup_capabilities.dart';
 import 'package:vitalis_app/services/startup_access_guard.dart';
+import 'package:vitalis_app/services/attached_file_reader.dart';
+import 'package:vitalis_app/models/file_context.dart';
+import 'package:vitalis_app/models/workspace_file.dart';
 
 class _MockSentinel implements HardwareSentinelService {
   @override
@@ -49,6 +52,46 @@ class _MockSentinel implements HardwareSentinelService {
 }
 
 void main() {
+  for (final fails in [false, true]) {
+    test(
+      'attached file ${fails ? 'exclusion blocks inference' : 'text reaches model context'}',
+      () async {
+        final controller = _EventController();
+        final provider = GenerationProvider(
+          controller: controller,
+          warmup: _PreparedWarmup(
+            repository: fails ? _FileBudgetRepository() : null,
+          ),
+          fileReader: _FixtureFileReader(
+            () async => [
+              FileContext(
+                name: 'fact.txt',
+                text: fails ? 'oversized fixture' : 'The code is 731.',
+              ),
+            ],
+          ),
+        );
+        await provider.startGeneration(
+          messages: [
+            Message(
+              chatId: 1,
+              role: MessageRole.user,
+              content: 'Read the attached file',
+            ),
+          ],
+          settings: ModelSettings(),
+        );
+        if (fails) {
+          expect(controller.requests, 0);
+          expect(provider.errorMessage, contains('do not fit'));
+        } else {
+          expect(controller.requests, 1);
+          expect(controller.messages!.first.content, contains('731'));
+        }
+        await provider.close();
+      },
+    );
+  }
   for (final outcome in ['unconfirmed', 'disposed']) {
     test('Stop cannot publish partial output when $outcome', () async {
       final controller = _ReadinessCancellationController();
@@ -1140,6 +1183,26 @@ class _BoundaryWarmup extends _PreparedWarmup {
     await _wait('model');
     return super.ensureProfile(profile, modelId: modelId);
   }
+}
+
+class _FixtureFileReader extends AttachedFileReader {
+  _FixtureFileReader(this.action);
+  final Future<List<FileContext>> Function() action;
+  @override
+  Future<List<FileContext>> read(List<WorkspaceFile> files) => action();
+}
+
+class _FileBudgetRepository extends _CountingRepository {
+  @override
+  Future<int> countChatTokens(
+    List<LLMMessage> messages, {
+    bool think = false,
+  }) async =>
+      messages.any(
+        (message) => message.content?.contains('oversized fixture') ?? false,
+      )
+      ? 1000000
+      : 2;
 }
 
 class _CountingRepository implements LlamaCppChatRepository {

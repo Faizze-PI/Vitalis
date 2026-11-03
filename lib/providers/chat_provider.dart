@@ -11,6 +11,9 @@ import '../models/chat_deletion_error.dart';
 import '../models/message.dart';
 import '../models/persona.dart';
 import '../models/note.dart';
+import '../models/workspace_file.dart';
+import '../services/local_file_workspace.dart'
+    show InputWorkspaceStore, LocalFileWorkspace;
 import '../models/model_settings.dart';
 import '../models/startup_capabilities.dart';
 import '../models/persistence_policy.dart';
@@ -28,6 +31,7 @@ part 'chat_settings_persistence.dart';
 
 class ChatProvider extends ChangeNotifier {
   final DatabaseHelper _db;
+  final InputWorkspaceStore _fileWorkspace;
   final AppLogger _logger;
   final ModelRegistryService _modelRegistry;
   final StartupAccessGuard? _startupAccess;
@@ -35,11 +39,13 @@ class ChatProvider extends ChangeNotifier {
 
   ChatProvider({
     DatabaseHelper? database,
+    InputWorkspaceStore? fileWorkspace,
     ModelRegistryService? modelRegistry,
     StartupAccessGuard? startupAccess,
     SelectedModelReadiness? modelReadiness,
     AppLogger? logger,
   }) : _db = database ?? DatabaseHelper.instance,
+       _fileWorkspace = fileWorkspace ?? LocalFileWorkspace.application(),
        _logger = logger ?? AppLogger.instance,
        _startupAccess = startupAccess,
        _modelReadiness = modelReadiness,
@@ -64,6 +70,7 @@ class ChatProvider extends ChangeNotifier {
   int _personaRevision = 0;
   final _personaWrites = <int?, Future<void>>{};
   List<Note> _attachedNotes = [];
+  List<WorkspaceFile> _attachedFiles = [];
   bool _hasOlderMessages = false;
   double _cachedContextUsage = 0.0;
   bool _contextUsageCacheStale = true;
@@ -130,6 +137,7 @@ class ChatProvider extends ChangeNotifier {
   int get deletionFailures => _deletionFailures;
   Persona? get currentPersona => _currentPersona;
   List<Note> get attachedNotes => List.unmodifiable(_attachedNotes);
+  List<WorkspaceFile> get attachedFiles => List.unmodifiable(_attachedFiles);
   Note? get attachedNote => _attachedNotes.firstOrNull;
   bool get hasOlderMessages => _hasOlderMessages;
 
@@ -289,6 +297,7 @@ class ChatProvider extends ChangeNotifier {
       _currentChat = chat.copyWith(id: id);
       _messages = [];
       _attachedNotes = [];
+      _attachedFiles = [];
       _currentPersona = null;
       _settings = ModelSettings(modelId: modelId);
       _committedSettings = _settings;
@@ -323,6 +332,7 @@ class ChatProvider extends ChangeNotifier {
       if (!current()) return;
       var messages = <Message>[];
       var notes = <Note>[];
+      var files = <WorkspaceFile>[];
       var settings = ModelSettings();
       Persona? persona;
       if (chat != null) {
@@ -331,6 +341,7 @@ class ChatProvider extends ChangeNotifier {
           limit: PaginationPolicy.messagePageSize,
         );
         notes = await _db.getAttachedNotes(id);
+        files = await _db.getAttachedFiles(id);
         final settingsMap = await _db.getModelSettings(id);
         settings = settingsMap != null
             ? ModelSettings.fromJson(settingsMap)
@@ -363,6 +374,7 @@ class ChatProvider extends ChangeNotifier {
       _currentChat = chat;
       _messages = messages;
       _attachedNotes = notes;
+      _attachedFiles = files;
       _settings = settings;
       _committedSettings = settings;
       _settingsRevision++;
@@ -461,6 +473,7 @@ class ChatProvider extends ChangeNotifier {
         _currentChat = null;
         _messages = [];
         _attachedNotes = [];
+        _attachedFiles = [];
         _currentPersona = null;
       }
       _requireAccess(StartupAccessOperation.browse);
@@ -575,7 +588,37 @@ class ChatProvider extends ChangeNotifier {
       settings: _settings,
       persona: _currentPersona,
       attachedNotes: _attachedNotes,
+      attachedFiles: List.unmodifiable(_attachedFiles),
     );
+  }
+
+  Future<void> attachFile(WorkspaceFile file) async {
+    _requireAccess(StartupAccessOperation.mutateContent);
+    if (_generation?.isSending == true)
+      throw StateError('Wait for generation to finish before changing files');
+    final id = _currentChat?.id, epoch = _selectionEpoch;
+    if (id == null) throw StateError('Select a chat before attaching a file');
+    if (_attachedFiles.any((entry) => entry.id == file.id)) return;
+    await _fileWorkspace.withFile(file.id, (_) => _db.attachFile(id, file));
+    if (_isDisposed || epoch != _selectionEpoch || _currentChat?.id != id)
+      return;
+    _attachedFiles = [..._attachedFiles, file];
+    _generation?.abandonResponseFrameObservation();
+    notifyListeners();
+  }
+
+  Future<void> detachFile(String fileId) async {
+    _requireAccess(StartupAccessOperation.mutateContent);
+    if (_generation?.isSending == true)
+      throw StateError('Wait for generation to finish before changing files');
+    final id = _currentChat?.id, epoch = _selectionEpoch;
+    if (id == null) return;
+    await _db.detachFile(id, fileId);
+    if (_isDisposed || epoch != _selectionEpoch || _currentChat?.id != id)
+      return;
+    _attachedFiles = _attachedFiles.where((file) => file.id != fileId).toList();
+    _generation?.abandonResponseFrameObservation();
+    notifyListeners();
   }
 
   Future<void> attachNote(Note? note) async {
@@ -698,6 +741,7 @@ class ChatProvider extends ChangeNotifier {
         _currentChat = draft.copyWith(id: id);
         _messages = [];
         _attachedNotes = [];
+        _attachedFiles = [];
         _currentPersona = null;
         _hasOlderMessages = false;
         _hasError = false;

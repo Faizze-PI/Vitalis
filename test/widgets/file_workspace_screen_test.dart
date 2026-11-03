@@ -29,6 +29,71 @@ Widget app(
 }
 
 void main() {
+  testWidgets(
+    'selection callback attaches an existing copy without importing again',
+    (tester) async {
+      final store = MemoryWorkspace();
+      const file = WorkspaceFile(
+        id: 'a',
+        name: 'fact.txt',
+        bytes: 4,
+        sha256: 'b',
+      );
+      store.files.add(file);
+      WorkspaceFile? selected;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: FileWorkspaceScreen(
+            workspace: store,
+            onSelect: (file) => selected = file,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Attach file fact.txt'));
+      await tester.pumpAndSettle();
+      expect(selected, file);
+      expect(store.imports, 0);
+      expect(store.files, [file]);
+    },
+  );
+  testWidgets('referenced file copy cannot be removed from workspace', (
+    tester,
+  ) async {
+    final store = MemoryWorkspace();
+    const file = WorkspaceFile(
+      id: 'a',
+      name: 'fact.txt',
+      bytes: 4,
+      sha256: 'b',
+    );
+    store.files.add(file);
+    await tester.pumpWidget(
+      Provider<StartupAccessGuard?>.value(
+        value: StartupAccessGuard(
+          () => const StartupCapabilities(
+            databaseReady: true,
+            migrationReady: true,
+            safetyReady: true,
+            modelReadiness: StartupModelReadiness.ready,
+          ),
+        ),
+        child: MaterialApp(
+          home: FileWorkspaceScreen(
+            workspace: store,
+            isReferenced: (_) async => true,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Remove imported file fact.txt'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Remove'));
+    await tester.pumpAndSettle();
+    expect(store.files, [file]);
+    expect(find.textContaining('Detach it'), findsOneWidget);
+  });
   testWidgets('imports a picker file and restores it after reopening', (
     tester,
   ) async {

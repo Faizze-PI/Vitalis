@@ -1,3 +1,4 @@
+import 'package:vitalis_app/models/workspace_file.dart';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -97,6 +98,8 @@ final class _ChatLogFailure implements Exception {
 }
 
 final class _Database implements DatabaseHelper {
+  @override
+  Future<List<WorkspaceFile>> getAttachedFiles(int chatId) async => [];
   _Database(this.operation);
   final String operation;
   @override

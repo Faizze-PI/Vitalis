@@ -11,6 +11,8 @@ import '../models/model_defaults.dart';
 import '../models/model_settings.dart';
 import '../utils/app_logger.dart';
 import 'installation_journal_schema.dart';
+import 'chat_file_attachment_schema.dart';
+import '../models/workspace_file.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._();
@@ -121,6 +123,7 @@ class DatabaseHelper {
     await _createV6Tables(db);
     await _createV7Tables(db);
     await createInstallationJournalSchema(db);
+    await createChatFileAttachmentSchema(db);
     await db.execute('''
       INSERT INTO personas (name, system_prompt, is_default)
       VALUES ('Default Assistant', 'You are a helpful assistant.', 1)
@@ -202,6 +205,9 @@ class DatabaseHelper {
           break;
         case 7:
           await createInstallationJournalSchema(db);
+          break;
+        case 8:
+          await createChatFileAttachmentSchema(db);
           break;
       }
     }
@@ -672,6 +678,65 @@ class DatabaseHelper {
         [maximumEntries],
       );
     });
+  }
+
+  Future<List<WorkspaceFile>> getAttachedFiles(int chatId) async {
+    final rows = await (await database).query(
+      'chat_file_attachments',
+      where: 'chat_id = ?',
+      whereArgs: [chatId],
+      orderBy: 'position ASC, file_id ASC',
+    );
+    return rows
+        .map(
+          (row) => WorkspaceFile(
+            id: row['file_id']! as String,
+            name: row['display_name']! as String,
+            bytes: row['byte_size']! as int,
+            sha256: row['sha256']! as String,
+          ),
+        )
+        .toList();
+  }
+
+  Future<void> attachFile(int chatId, WorkspaceFile file) async {
+    if (!RegExp(r'^[a-f0-9]{32}$').hasMatch(file.id) ||
+        !RegExp(r'^[a-f0-9]{64}$').hasMatch(file.sha256) ||
+        file.bytes < 0 ||
+        file.name.isEmpty ||
+        file.name.runes.length > AppConstants.maxChatTitleLength) {
+      throw ArgumentError('Invalid file attachment metadata');
+    }
+    await (await database).transaction((txn) async {
+      final next = await txn.rawQuery(
+        'SELECT COALESCE(MAX(position), -1) + 1 AS next_position FROM chat_file_attachments WHERE chat_id = ?',
+        [chatId],
+      );
+      await txn.insert('chat_file_attachments', {
+        'chat_id': chatId,
+        'file_id': file.id,
+        'display_name': file.name,
+        'byte_size': file.bytes,
+        'sha256': file.sha256,
+        'position': next.first['next_position'],
+      }, conflictAlgorithm: ConflictAlgorithm.ignore);
+    });
+  }
+
+  Future<void> detachFile(int chatId, String fileId) async {
+    await (await database).delete(
+      'chat_file_attachments',
+      where: 'chat_id = ? AND file_id = ?',
+      whereArgs: [chatId, fileId],
+    );
+  }
+
+  Future<int> fileAttachmentCount(String fileId) async {
+    final rows = await (await database).rawQuery(
+      'SELECT COUNT(*) AS total FROM chat_file_attachments WHERE file_id = ?',
+      [fileId],
+    );
+    return rows.single['total']! as int;
   }
 
   Future<List<Note>> getAttachedNotes(int chatId) async {

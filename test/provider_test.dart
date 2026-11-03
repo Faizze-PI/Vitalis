@@ -1,3 +1,4 @@
+import 'package:vitalis_app/models/workspace_file.dart';
 import 'dart:io';
 import 'dart:async';
 
@@ -330,6 +331,8 @@ void main() {
 }
 
 class _DelayedCompletionDatabase implements DatabaseHelper {
+  @override
+  Future<List<WorkspaceFile>> getAttachedFiles(int chatId) async => [];
   final entered = Completer<void>();
   final release = Completer<void>();
   final updated = Completer<void>();

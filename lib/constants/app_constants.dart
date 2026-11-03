@@ -1,7 +1,7 @@
 class AppConstants {
   static const String appName = 'Vitalis'; // hardcode: HC-044
   static const String databaseName = 'vitalis.db'; // hardcode: HC-044
-  static const int databaseVersion = 8; // hardcode: HC-044
+  static const int databaseVersion = 9; // hardcode: HC-044
   static const int maxStoredTextBytes = 1024 * 1024;
   static const int maxChatTitleLength = 256; // hardcode: HC-021
   static const int maxPersonaNameLength = 256; // hardcode: HC-021

@@ -1,3 +1,4 @@
+import 'package:vitalis_app/models/workspace_file.dart';
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -166,6 +167,8 @@ void main() {
 }
 
 final class _Database implements DatabaseHelper {
+  @override
+  Future<List<WorkspaceFile>> getAttachedFiles(int chatId) async => [];
   Object? failure;
   int rowsUpdated = 1;
   Completer<void>? gate;

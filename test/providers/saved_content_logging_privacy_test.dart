@@ -1,3 +1,4 @@
+import 'package:vitalis_app/models/workspace_file.dart';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -112,6 +113,8 @@ final class _StorageFixtureFailure implements Exception {
 }
 
 final class _FailingDatabase implements DatabaseHelper {
+  @override
+  Future<List<WorkspaceFile>> getAttachedFiles(int chatId) async => [];
   @override
   dynamic noSuchMethod(Invocation invocation) => Error.throwWithStackTrace(
     _StorageFixtureFailure(),
