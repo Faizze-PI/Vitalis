@@ -896,6 +896,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       },
                       onStop: chatProvider.stopSending,
                       status: generationProvider.chatStatus,
+                      isBusy: isSending,
                     ),
                 ],
               ),

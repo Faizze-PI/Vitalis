@@ -189,6 +189,59 @@ void main() {
     },
   );
 
+  testWidgets('Stop remains available while response preparation is pending', (
+    tester,
+  ) async {
+    final preparation = Completer<void>();
+    var stops = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ChatInputField(
+            onSend: (_) => preparation.future,
+            onStop: () async {
+              stops++;
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.enterText(find.byType(TextField), 'Prepare this response');
+    await tester.pump();
+    await tester.tap(find.byTooltip(AppStrings.sendMessage));
+    await tester.pump();
+    expect(find.byTooltip(AppStrings.stopGenerating), findsOneWidget);
+    await tester.tap(find.byTooltip(AppStrings.stopGenerating));
+    expect(stops, 1);
+    expect(tester.widget<TextField>(find.byType(TextField)).enabled, isFalse);
+    preparation.complete();
+    await tester.pumpAndSettle();
+    expect(find.byTooltip(AppStrings.stopGenerating), findsNothing);
+  });
+
+  testWidgets(
+    'externally owned preparation exposes Stop without a local send',
+    (tester) async {
+      var stops = 0;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ChatInputField(
+              isBusy: true,
+              onSend: (_) async {},
+              onStop: () async {
+                stops++;
+              },
+            ),
+          ),
+        ),
+      );
+      await tester.tap(find.byTooltip(AppStrings.stopGenerating));
+      expect(stops, 1);
+      expect(tester.widget<TextField>(find.byType(TextField)).enabled, isFalse);
+    },
+  );
+
   testWidgets('Stop stays reachable while native cancellation is pending', (
     tester,
   ) async {

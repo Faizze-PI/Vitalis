@@ -10,11 +10,13 @@ class ChatInputField extends StatefulWidget {
     this.onStop,
     this.onAttach,
     this.status = ChatStatus.idle,
+    this.isBusy = false,
   });
   final Future<void> Function(String) onSend;
   final Future<void> Function()? onStop;
   final VoidCallback? onAttach;
   final ChatStatus status;
+  final bool isBusy;
 
   @override
   State<ChatInputField> createState() => _ChatInputFieldState();
@@ -25,6 +27,8 @@ class _ChatInputFieldState extends State<ChatInputField> {
   bool _submitting = false;
   int _draftRevision = 0;
   bool get _isActive =>
+      widget.isBusy ||
+      _submitting ||
       widget.status == ChatStatus.generating ||
       widget.status == ChatStatus.interrupting;
 

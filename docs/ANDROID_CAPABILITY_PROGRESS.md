@@ -5,8 +5,10 @@ programme, not to the already implemented text-chat application.
 
 Working-first update: the user prioritized local files and custom algorithms.
 The local workspace now has import/storage, text previews and removal implemented
-with focused tests; Android phone verification is pending. It is not yet chat
-attachment support. A numeric ONNX/CSV reference graph passed on the development
+with focused tests and OPPO verification. Conversation TXT/CSV attachments now
+persist in schema 9; exact TXT retrieval, restart persistence, deletion guards
+and unsupported-image rejection passed on build `f47d2be`. CSV arithmetic failed
+(6 instead of 5), and preparation Stop needs its rebuilt-phone regression. A numeric ONNX/CSV reference graph passed on the development
 host and on the OPPO through the actual import/Run screens. CSV and image outputs
 match their references. Four JVM checks and four native phone tests pass; files
 survive explicit force-stop/relaunch, and wrong-input recovery passes. See
@@ -24,8 +26,8 @@ two defects physically.
 | Step | State | Evidence / next required result |
 |---|---|---|
 | 1. Backend compatibility | In progress | ONNX CSV/image and pretrained MobileNetV2 execution proved on API-36 arm64 phone. Native cancellation to worker termination measured 12.056 ms in one bounded Loop test. GGUF vision encoding and tools round trip remain unproven. |
-| 2. Capability/storage contracts | Not started | Depends on backend proof; preserve the existing version-8 database. |
-| 3. File attachments | Local workspace phone-tested | Six fixture files imported with system picker and survive restart; chat associations and image previews remain pending. |
+| 2. Capability/storage contracts | Partial | Additive schema 9 chat-file references; existing table/workspace fingerprints preserved across upgrade. Multimodal capabilities remain pending. |
+| 3. File attachments | Text path phone-tested | TXT grounding, persistent TXT/CSV chat associations, attached-file deletion guard and unsupported-image rejection pass. CSV arithmetic failed; image previews/decoders remain pending. |
 | 4. Complete model bundles | Not started | Candidate base/projector pair is hash-pinned for probes; app imports still support text GGUF only. |
 | 5. Vision inference | Not started | A compiled library is not image inference. |
 | 6. PDF/OCR/citations | Not started | Requires bounded extraction and qualified offline OCR. |

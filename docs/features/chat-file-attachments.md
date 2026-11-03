@@ -1,8 +1,10 @@
 # Conversation file attachments
 
-Implementation checkpoint, 4 November 2026. Host tests pass; a fresh-build phone
-test is still required. The previously installed ONNX prototype does not include
-this conversation attachment change.
+Implementation checkpoint, 4 November 2026. Build `f47d2be` was installed in
+place on the OPPO after certificate comparison. Thirteen existing database-table
+fingerprints and sixteen input-workspace-file fingerprints matched across the
+upgrade; schema 8 migrated to 9. This does not establish preservation of every
+shared preference or rehash the separately stored large GGUF binaries.
 
 In a ready chat, use the composer's **+ → Attach file**. Import a local file or
 select an existing workspace copy. Its chip remains attached to that chat across
@@ -44,3 +46,24 @@ canonical content digests plus input-workspace digests before/after an upgrade.
 It emits no row text, filenames or model paths. Missing data is reported as
 unverified. It is explicitly invoked, not an ordinary JUnit test and not shipped
 in the application APK.
+
+Phone attachment cases on `f47d2be`: exact access-code retrieval from TXT passed;
+TXT/CSV references survived explicit force-stop/relaunch; removal of an attached
+CSV was refused; an attached PNG produced a decoder error rather than simulated
+vision. The PNG reference was then removed without deleting its file.
+
+The CSV arithmetic case failed: values 2, 3, 0 should total 5, but the selected
+Qwen2.5 1.5B model answered 6. Do not advertise language-model arithmetic as an
+exact calculation tool. Deterministic CSV/ONNX execution remains a separate path.
+Follow-up investigation must distinguish context delivery from model arithmetic.
+
+Phone finding PHONE-PREP-STOP-20261104: Stop was hidden during preparation while
+Send was disabled. Composer busy state now includes local submission and the
+provider's preparation state. Two new widget regressions cover both entry paths;
+phone retest of this source correction remains pending a fresh build.
+
+Raw evidence remains local under the November 4 chat-files phone-validation line;
+private screenshots and logs are not distributed with the source.
+
+Stop-fix host rerun: 1,471 root tests passed with seed 20261104; nine focused
+composer tests and full analysis passed. This remains distinct from phone retest.
