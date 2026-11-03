@@ -103,8 +103,11 @@ is not a sandbox or a guarantee against every graph's internal allocation.
 The Run screen and shared runtime/file ownership are now connected and reference
 CSV/image flows pass on the phone. Host checks:
 1,451 root tests, clean full analysis, four Android JVM checks and the existing
-78-disposition verifier. Long in-flight cancellation timing remains unmeasured;
-the pre-cancelled test does not prove that timing.
+78-disposition verifier. A later native test independently observed an active
+ONNX JNI run, cancelled it, measured 12.056 ms to worker termination and ran CSV
+inference successfully afterward. UI Stop timing remains unmeasured. A real
+pretrained MobileNetV2 also runs through the UI; the first 64 displayed scores
+match a host reference. See the validation report for exact scope and model lock.
 
 ## Current limits
 

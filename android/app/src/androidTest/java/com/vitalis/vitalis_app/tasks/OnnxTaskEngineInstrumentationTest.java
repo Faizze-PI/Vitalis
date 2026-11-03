@@ -21,10 +21,77 @@ import android.graphics.Bitmap;
 import java.io.FileOutputStream;
 import java.util.UUID;
 import java.util.concurrent.CancellationException;
+import java.util.concurrent.*;
+import android.os.Bundle;
+import android.os.SystemClock;
 
 /** Synthetic graph, generated from readable protobuf fields; no downloaded data. */
 @RunWith(AndroidJUnit4.class)
 public final class OnnxTaskEngineInstrumentationTest {
+    @Test public void cancelsObservedNativeLoopThenRunsAnotherModel() throws Exception {
+        Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
+        File directory=new File(context.getFilesDir(),"input_workspace");
+        assertTrue(directory.isDirectory() || directory.mkdirs());
+        File model=new File(directory,UUID.randomUUID().toString().replace("-","")+".blob");
+        assertTrue(model.createNewFile());
+        byte[] bytes=loopModel(1000000); // Bounded test fixture, cancelled on observed JNI entry.
+        Files.write(model.toPath(),bytes);
+        var control=new OnnxTaskEngine.Control();
+        ExecutorService worker=Executors.newSingleThreadExecutor();
+        java.util.concurrent.atomic.AtomicReference<Thread> thread=new java.util.concurrent.atomic.AtomicReference<>();
+        Future<?> running=worker.submit(() -> {
+            thread.set(Thread.currentThread());
+            try {
+                OnnxTaskEngine.run(context,model,hex(MessageDigest.getInstance("SHA-256").digest(bytes)),
+                        "features",new float[]{0},new long[]{1},Collections.singletonList("result"),control);
+                throw new AssertionError("Long task completed before cancellation");
+            } catch(CancellationException expected) { throw expected; }
+              catch(Exception failure) {throw new RuntimeException(failure);}
+        });
+        boolean nativeObserved=false;
+        try {
+            long deadline=SystemClock.elapsedRealtime()+5000;
+            while(!running.isDone() && SystemClock.elapsedRealtime()<deadline) {
+                Thread current=thread.get();
+                if(current!=null)for(StackTraceElement frame:current.getStackTrace()) {
+                    if(frame.isNativeMethod() && frame.getClassName().equals("ai.onnxruntime.OrtSession")) {
+                        nativeObserved=true;break;
+                    }
+                }
+                if(nativeObserved)break;
+                SystemClock.sleep(2);
+            }
+            long requested=SystemClock.elapsedRealtimeNanos();
+            control.cancel();
+            try {running.get(2,TimeUnit.SECONDS);fail("Cancellation not reported");}
+            catch(ExecutionException expected){assertTrue(expected.getCause() instanceof CancellationException);}
+            long acknowledged=SystemClock.elapsedRealtimeNanos();
+            assertTrue("Native run was not independently observed",nativeObserved);
+            Bundle evidence=new Bundle();
+            evidence.putString("vitalis.onnx.native_run_observed","true");
+            evidence.putString("vitalis.onnx.cancel_to_worker_termination_us",Long.toString((acknowledged-requested)/1000));
+            InstrumentationRegistry.getInstrumentation().sendStatus(0,evidence);
+            executesCsvReferenceAndReleasesResources();
+        } finally {
+            control.cancel();worker.shutdown();
+            if(running.isDone())assertTrue(model.delete()); // Never delete under a live native reader.
+        }
+    }
+
+    private static byte[] loopModel(long iterations) {
+        byte[] one=join(number(1,1),number(2,1),string(8,"one"),bytes(9,ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putFloat(1).array()));
+        byte[] add=join(string(1,"carry"),string(1,"one"),string(2,"next"),string(4,"Add"));
+        byte[] identity=join(string(1,"condition_in"),string(2,"condition_out"),string(4,"Identity"));
+        byte[] body=join(bytes(1,add),bytes(1,identity),string(2,"count-body"),bytes(5,one),
+                bytes(11,typedValue("iteration",7)),bytes(11,typedValue("condition_in",9)),bytes(11,value("carry",1)),
+                bytes(12,typedValue("condition_out",9)),bytes(12,value("next",1)));
+        byte[] trip=join(number(2,7),string(8,"trip"),bytes(9,ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(iterations).array()));
+        byte[] condition=join(number(2,9),string(8,"condition"),bytes(9,new byte[]{1}));
+        byte[] attribute=join(string(1,"body"),bytes(6,body),number(20,5));
+        byte[] node=join(string(1,"trip"),string(1,"condition"),string(1,"features"),string(2,"result"),string(4,"Loop"),bytes(5,attribute));
+        byte[] graph=join(bytes(1,node),string(2,"cancellation-reference"),bytes(5,trip),bytes(5,condition),bytes(11,value("features",1)),bytes(12,value("result",1)));
+        return join(number(1,9),bytes(7,graph),bytes(8,number(2,18)));
+    }
     @Test public void executesImagePreprocessingAndReferenceGraph() throws Exception {
         Context context=InstrumentationRegistry.getInstrumentation().getTargetContext();
         File directory=new File(context.getFilesDir(),"input_workspace");
@@ -92,9 +159,12 @@ public final class OnnxTaskEngineInstrumentationTest {
         return join(number(1,9),bytes(7,graph),bytes(8,number(2,18)));
     }
     private static byte[] value(String name, int... dimensions) {
+        return typedValue(name,1,dimensions);
+    }
+    private static byte[] typedValue(String name,int type,int... dimensions) {
         byte[] shape=new byte[0];
         for(int dimension:dimensions)shape=join(shape,bytes(1,number(1,dimension)));
-        return join(string(1,name),bytes(2,bytes(1,join(number(1,1),bytes(2,shape)))));
+        return join(string(1,name),bytes(2,bytes(1,join(number(1,type),bytes(2,shape)))));
     }
     private static byte[] number(int field,long value) {return join(varint(field<<3),varint(value));}
     private static byte[] string(int field,String value) {return bytes(field,value.getBytes(StandardCharsets.UTF_8));}

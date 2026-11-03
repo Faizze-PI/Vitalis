@@ -17,7 +17,9 @@ the remaining attachment/vision/tools programme.
 | Invalid input | Image task given CSV returns typed `invalidInputOrModel`; no fabricated output. |
 | Recovery | Selecting the PNG again produces the correct image result. |
 | Persistence | All six files survive explicit force-stop/relaunch; CSV runs correctly afterward. This is distinct from OS process-death testing. |
-| Native instrumentation | Three tests pass on the phone: CSV reference, image reference and pre-cancelled admission. |
+| Native instrumentation | Four tests pass on the phone: CSV reference, image reference, pre-cancelled admission, and cancellation during an independently observed JNI run followed by successful CSV inference. |
+| Native cancellation | Bounded ONNX Loop task: cancellation request to worker termination, including resource cleanup, measured 12,056 microseconds. This is not UI Stop timing or a guarantee for every operator. |
+| Pretrained model | Publisher-hash-verified MobileNetV2 imported and run through the UI. Output shape `[1,1000]`; first 64 displayed scores match the host within maximum absolute error `0.000007703901` (tolerance `0.0001`). The remaining scores were not retrieved from the UI. |
 | Host checks | 1,451 root tests, full analysis, formatting and existing 78-disposition verifier pass. Four targeted Android JVM tests pass. |
 | Logs/resources | Captured logs, screenshots/XML, memory, battery and thermal snapshots locally. No app-attributable fatal patterns in the captured task window. Post-task thermal status 0; no performance or leak verdict inferred from this small workload. |
 
@@ -27,8 +29,8 @@ They demonstrate custom arithmetic and image-channel algorithms; they are not
 trained diagnostic models. Use the [file/task guide](local-files-and-custom-tasks.md)
 for current input contracts and limitations.
 
-Remaining checks include long-running native cancellation timing, safety/lifecycle
-stress during native work, real trained-model reference comparisons, broader tensor
+Remaining checks include UI cancellation timing, safety/lifecycle
+stress during native work, additional trained-model reference comparisons, broader tensor
 types and preprocessing, API-28 execution, and release qualification. Companion
 weights, arbitrary Python, in-app training, automatic probability/diagnosis
 interpretation, chat attachments, PDF/OCR, GGUF vision and tool calling are not
@@ -37,3 +39,15 @@ observable; retained chat listing does not prove every private record unchanged.
 
 Raw private evidence stays outside Git in the local remediation evidence line.
 Full Android CPU ratification remains **HOLD**.
+
+## Pretrained fixture authority
+
+The optional compatibility fixture is [ONNX Model Zoo MobileNetV2](https://huggingface.co/onnxmodelzoo/mobilenetv2-12/blob/23a2a25eaaa6fcd61865414c8a1acf13dda66b7a/README.md),
+Apache-2.0, immutable revision `23a2a25eaaa6fcd61865414c8a1acf13dda66b7a`.
+Publisher LFS SHA-256:
+`c0c3f76d93fa3fd6580652a45618618a220fced18babf65774ed169de0432ad5`;
+13,964,571 bytes. The [locked preparer](../../tool/custom_tasks/prepare_pretrained_reference.py)
+verifies that identity and generates task/input/reference files outside Git.
+The probe uses a synthetic RGB image, nearest stretching and the publisher's
+normalization. It does not reproduce the publisher's center-crop accuracy
+evaluation, assign class labels, or establish medical/real-world accuracy.
