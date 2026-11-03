@@ -49,6 +49,110 @@ class _MockSentinel implements HardwareSentinelService {
 }
 
 void main() {
+  for (final outcome in ['unconfirmed', 'disposed']) {
+    test('Stop cannot publish partial output when $outcome', () async {
+      final controller = _ReadinessCancellationController();
+      final provider = GenerationProvider(
+        controller: controller,
+        warmup: _PreparedWarmup(),
+      );
+      final saved = <String>[];
+      provider.onGenerationComplete = saved.add;
+      await provider.startGeneration(
+        messages: [
+          Message(chatId: 1, role: MessageRole.user, content: 'fixture'),
+        ],
+        settings: ModelSettings(),
+      );
+      controller.onToken!('partial');
+      final stopping = provider.stopSending();
+      await controller.cancellationStarted.future;
+      if (outcome == 'unconfirmed') {
+        final failed = expectLater(stopping, throwsStateError);
+        controller.acknowledgement.completeError(StateError('unconfirmed'));
+        await failed;
+        expect(provider.requiresRecovery, isTrue);
+        provider.dispose();
+      } else {
+        provider.dispose();
+        controller.acknowledgement.complete();
+        await stopping;
+        await provider.close();
+      }
+      expect(saved, isEmpty);
+    });
+  }
+
+  test(
+    'Stop preserves the admitted partial reply once after acknowledgement',
+    () async {
+      final controller = _ReadinessCancellationController();
+      final provider = GenerationProvider(
+        controller: controller,
+        warmup: _PreparedWarmup(),
+      );
+      addTearDown(provider.close);
+      final saved = <String>[];
+      provider.onGenerationComplete = saved.add;
+      await provider.startGeneration(
+        messages: [
+          Message(chatId: 1, role: MessageRole.user, content: 'fixture'),
+        ],
+        settings: ModelSettings(),
+      );
+      controller.onToken!('Partial reply');
+      final stopping = provider.stopSending();
+      expect(provider.stopSending(), same(stopping));
+      await controller.cancellationStarted.future;
+      controller.onToken!(' late');
+      controller.onComplete!();
+      expect(saved, isEmpty);
+      expect(provider.isSending, isTrue);
+      provider.onGenerationComplete = (_) =>
+          fail('Another observer cannot take the stopped reply');
+      controller.acknowledgement.complete();
+      await stopping;
+      expect(saved, ['Partial reply']);
+      controller.onComplete!();
+      expect(saved, ['Partial reply']);
+      expect(provider.isSending, isFalse);
+    },
+  );
+
+  test(
+    'changing chat presentation clears the previous context exclusion',
+    () async {
+      final controller = _EventController();
+      final provider = GenerationProvider(
+        controller: controller,
+        warmup: _PreparedWarmup(),
+      );
+      addTearDown(provider.close);
+      await provider.startGeneration(
+        messages: [
+          Message(
+            chatId: 1,
+            role: MessageRole.user,
+            content: 'orphaned old request',
+          ),
+          Message(
+            chatId: 1,
+            role: MessageRole.user,
+            content: 'current request',
+          ),
+        ],
+        settings: ModelSettings(),
+      );
+      expect(provider.showTruncationWarning, isTrue);
+      controller.onToken!('reply');
+      controller.onComplete!();
+      provider.abandonResponseFrameObservation();
+      expect(provider.showTruncationWarning, isFalse);
+      expect(provider.lastContextUsage, 0);
+      expect(provider.truncationDismissed, isFalse);
+    },
+  );
+
   test(
     'painted response timing survives completion and rejects old or stopped work',
     () async {

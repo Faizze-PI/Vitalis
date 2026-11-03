@@ -10,6 +10,33 @@ import 'package:vitalis_app/providers/chat_provider.dart';
 import 'package:vitalis_app/providers/generation_provider.dart';
 
 void main() {
+  test(
+    'follow-up waits for the previous assistant save before admission',
+    () async {
+      final database = _CompletionBeforeSendDatabase();
+      final provider = ChatProvider(database: database);
+      addTearDown(() async {
+        if (!database.release.isCompleted) database.release.complete();
+        await provider.close();
+      });
+      await provider.selectChat(17);
+      final generation = _Generation();
+      provider.setGenerationProvider(generation);
+      generation.onGenerationComplete!('Stopped partial reply');
+      await database.entered.future;
+      final sending = provider.submitMessage('follow-up');
+      await Future<void>.delayed(Duration.zero);
+      expect(database.roles, isEmpty);
+      database.release.complete();
+      expect(await sending, isTrue);
+      expect(database.roles, ['assistant', 'user']);
+      expect(provider.messages.map((m) => m.content), [
+        'Stopped partial reply',
+        'follow-up',
+      ]);
+    },
+  );
+
   test('out-of-order saves retain each response render identity', () async {
     final database = _ReorderedDatabase();
     final provider = ChatProvider(database: database);
@@ -160,6 +187,21 @@ final class _ReorderedDatabase extends _Database {
   }
 }
 
+final class _CompletionBeforeSendDatabase extends _Database {
+  final entered = Completer<void>();
+  final release = Completer<void>();
+  final roles = <String>[];
+  @override
+  Future<int> insertMessage(Map<String, dynamic> message) async {
+    if (message['role'] == 'assistant') {
+      entered.complete();
+      await release.future;
+    }
+    roles.add(message['role'] as String);
+    return roles.length;
+  }
+}
+
 final class _Database implements DatabaseHelper {
   final writeEntered = Completer<void>();
   final writeRelease = Completer<void>();
@@ -247,5 +289,6 @@ final class _Generation implements GenerationProvider {
   @override
   Future<void> stopSending() async {}
   @override
-  dynamic noSuchMethod(Invocation invocation) => null;
+  dynamic noSuchMethod(Invocation invocation) =>
+      invocation.memberName == #startGeneration ? Future<void>.value() : null;
 }

@@ -548,6 +548,11 @@ class ChatProvider extends ChangeNotifier {
     );
     var persisted = false;
     try {
+      // A stopped/completed reply must precede the next user turn on disk and
+      // in the context, even when its original database write is still pending.
+      await drainPendingPersistence();
+      if (!ownsView()) return false;
+      _requireAccess(StartupAccessOperation.inference);
       final msgId = await _db.insertMessage(userMessage.toMap());
       persisted = true;
       if (!ownsView()) return true;

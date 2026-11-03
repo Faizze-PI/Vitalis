@@ -92,7 +92,12 @@ class GenerationProvider extends ChangeNotifier {
     if (!_isDisposed) _responseFrameTiming.recordFrame(identity);
   }
 
-  void abandonResponseFrameObservation() => _responseFrameTiming.invalidate();
+  void abandonResponseFrameObservation() {
+    _responseFrameTiming.invalidate();
+    // Context exclusions belong to the conversation being left, not its successor.
+    _lastContextResult = null;
+    _truncationDismissed = false;
+  }
 
   bool get requiresRecovery =>
       _recoveryRequired ||
@@ -427,6 +432,8 @@ class GenerationProvider extends ChangeNotifier {
       return Future.value();
     _responseFrameTiming.invalidate();
     _stopRequested = true;
+    final partial = _genBuffer.toString();
+    final savePartial = onGenerationComplete;
     final completion = Completer<void>();
     _stopFuture = completion.future;
     unawaited(() async {
@@ -439,6 +446,20 @@ class GenerationProvider extends ChangeNotifier {
         await _preparationFuture;
         _isSending = false;
         _hasError = false;
+        // Publish only the admitted output, once native shutdown is confirmed.
+        // Capture its original observer so a new owner cannot receive it.
+        if (!_isDisposed && partial.trim().isNotEmpty) {
+          try {
+            savePartial?.call(partial);
+          } catch (error) {
+            AppLogger.instance.warning(
+              'Stopped response observer failed (${error.runtimeType})',
+            );
+            _hasError = true;
+            _errorMessage =
+                'Stopped response could not be saved. Reopen this chat before retrying.';
+          }
+        }
         _genBuffer.clear();
         if (!_isDisposed) notifyListeners();
         _stopFuture = null;
