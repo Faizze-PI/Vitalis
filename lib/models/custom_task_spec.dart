@@ -77,11 +77,14 @@ final class CustomTaskSpec {
           shape.first != 1 ||
           !['NCHW', 'NHWC'].contains(layout) ||
           input['resize'] != 'stretch' ||
+          input['interpolation'] != 'nearest' ||
+          input['color_order'] != 'RGB' ||
+          input['orientation'] != 'stored' ||
           scale is! num ||
           !scale.isFinite ||
           scale <= 0)
         invalid(
-          'Image tasks must declare layout, stretch resize and a finite scale.',
+          'Declare RGB, stored orientation, nearest stretch resize, layout and scale.',
         ); // hardcode: HC-078
       final channels = shape[layout == 'NCHW' ? 1 : 3];
       if (channels != 3)
@@ -103,6 +106,9 @@ final class CustomTaskSpec {
       image = {
         'layout': layout,
         'resize': 'stretch',
+        'interpolation': 'nearest',
+        'color_order': 'RGB',
+        'orientation': 'stored',
         'scale': scale.toDouble(),
         'mean': normalization(input['mean'], positive: false),
         'std': normalization(input['std'], positive: true),

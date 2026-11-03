@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../services/local_file_workspace.dart';
 import '../services/startup_access_guard.dart';
 import '../services/model_storage_preflight.dart';
+import 'custom_task_screen.dart';
 
 typedef WorkspaceSelection = ({
   String name,
@@ -209,12 +210,29 @@ class _FileWorkspaceScreenState extends State<FileWorkspaceScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           const Text(
-            'Import a local file for a compatible task. Files stay on this device. Custom algorithm execution is being added; stored files are not automatically sent to a chat model.',
+            'Import local files, then select Run custom algorithm for a compatible ONNX task. Files stay on this device and are not automatically sent to a chat model.',
           ),
           FilledButton.icon(
             onPressed: _busy ? null : _import,
             icon: const Icon(Icons.upload_file),
             label: const Text('Import file'),
+          ),
+          OutlinedButton.icon(
+            onPressed: _busy || (_files?.isEmpty ?? true)
+                ? null
+                : () async {
+                    await Navigator.of(context).push<void>(
+                      MaterialPageRoute(
+                        builder: (_) => CustomTaskScreen(
+                          workspace: _workspace,
+                          files: List.unmodifiable(_files!),
+                        ),
+                      ),
+                    );
+                    if (mounted) await _refresh();
+                  },
+            icon: const Icon(Icons.play_arrow),
+            label: const Text('Run custom algorithm'),
           ),
           if (_busy || (_files == null && _error == null))
             const LinearProgressIndicator(

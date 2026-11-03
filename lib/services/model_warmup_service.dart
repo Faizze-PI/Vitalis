@@ -504,6 +504,26 @@ class ModelWarmupService extends ChangeNotifier implements LifecycleManager {
     _cleanupFailed = true;
   }
 
+  /// Release only this service's model before a different local backend runs.
+  Future<void> releaseForCustomTask() async {
+    _checkAvailable();
+    await cancelTuning();
+    _checkAvailable();
+    if (_preparationFuture != null || _warmingUp || _unloadFuture != null) {
+      throw InferenceRuntimeBusy();
+    }
+    final active = _activeModelPath;
+    if (active == null) return;
+    final models = await _modelRegistry.listModels();
+    for (final model in models) {
+      if (model.localPath == active) {
+        await unloadModel(model.id);
+        return;
+      }
+    }
+    throw InferenceRuntimeBusy();
+  }
+
   Future<void> unloadModel(String modelId) {
     try {
       _checkAvailable();

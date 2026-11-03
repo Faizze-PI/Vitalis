@@ -29,7 +29,7 @@ public final class OnnxTaskEngine {
             if (cancelled) options.setTerminate(true);
         }
         private synchronized void detach() { active = null; }
-        private void check() { if (isCancelled()) throw new CancellationException(); }
+        void check() { if (isCancelled()) throw new CancellationException(); }
     }
 
     public static final class Output {
@@ -49,6 +49,16 @@ public final class OnnxTaskEngine {
             String inputName, float[] values, long[] shape, List<String> outputNames,
             Control control) throws Exception {
         control.check();
+        requireOwnedFile(context, model);
+        if (expectedHash == null || !expectedHash.matches("[a-f0-9]{64}"))
+            throw new IllegalArgumentException("hashRequired");
+        long budget = allocationBudget(context);
+        if (model.length() <= 0 || model.length() > budget ||
+                model.length() > Integer.MAX_VALUE) throw new IllegalArgumentException("memoryBudget");
+        return runOwned(context, model, expectedHash, inputName, values, shape, outputNames, control, budget);
+    }
+
+    static void requireOwnedFile(Context context, File model) throws Exception {
         File root = new File(context.getFilesDir(), "input_workspace");
         // Android may alias /data/user/0 to /data/data; reject selected links,
         // not the operating system's canonical app-storage ancestry.
@@ -57,15 +67,20 @@ public final class OnnxTaskEngine {
                 !model.getName().matches("[a-f0-9]{32}\\.blob") ||
                 Files.isSymbolicLink(model.toPath()) || !model.isFile())
             throw new IllegalArgumentException("modelNotOwned");
-        if (expectedHash == null || !expectedHash.matches("[a-f0-9]{64}"))
-            throw new IllegalArgumentException("hashRequired");
+    }
+
+    static long allocationBudget(Context context) {
         ActivityManager manager = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
         ActivityManager.MemoryInfo memory = new ActivityManager.MemoryInfo();
         manager.getMemoryInfo(memory);
         // HC-078: conservative prototype allocation budget; never probe to exhaustion.
         long budget = Math.min(memory.availMem / 4, Runtime.getRuntime().maxMemory() / 4);
-        if (memory.lowMemory || model.length() <= 0 || model.length() > budget ||
-                model.length() > Integer.MAX_VALUE) throw new IllegalArgumentException("memoryBudget");
+        if (memory.lowMemory || budget <= 0) throw new IllegalArgumentException("memoryBudget");
+        return budget;
+    }
+
+    private static Result runOwned(Context context, File model, String expectedHash, String inputName,
+            float[] values, long[] shape, List<String> outputNames, Control control, long budget) throws Exception {
         long elements = 1;
         for (long dimension : shape) {
             if (dimension <= 0 || elements > budget / Float.BYTES / dimension)

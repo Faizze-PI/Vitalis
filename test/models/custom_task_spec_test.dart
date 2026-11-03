@@ -98,6 +98,9 @@ void main() {
       'shape': [1, 3, 2, 2],
       'layout': 'NCHW',
       'resize': 'stretch',
+      'interpolation': 'nearest',
+      'color_order': 'RGB',
+      'orientation': 'stored',
       'scale': 1 / 255,
       'mean': [0, 0, 0],
       'std': [1, 1, 1],
@@ -105,5 +108,14 @@ void main() {
     final spec = CustomTaskSpec.parse(task, maxInputElements: 100);
     expect(spec.kind, 'image');
     expect(spec.elementCount, 12);
+    final input = Map<String, Object?>.from(task['input']! as Map);
+    input.remove('color_order');
+    expect(
+      () => CustomTaskSpec.parse({
+        ...task,
+        'input': input,
+      }, maxInputElements: 100),
+      throwsFormatException,
+    );
   });
 }

@@ -68,6 +68,28 @@ void main() {
     );
   }
 
+  test(
+    'custom task handoff unloads the active model without disposing service',
+    () async {
+      final repositories = _RepositoryFactory();
+      final service = createService(repositories: repositories);
+      addTearDown(service.dispose);
+      await service.ensureProfile(
+        _stored(gpuLayers: 0).profile,
+        modelId: model.id,
+      );
+      await service.releaseForCustomTask();
+      expect(service.repository, isNull);
+      expect(service.isDisposed, isFalse);
+      expect(repositories.created.single.unloadCalls, 1);
+      await service.ensureProfile(
+        _stored(gpuLayers: 0).profile,
+        modelId: model.id,
+      );
+      expect(repositories.created, hasLength(2));
+    },
+  );
+
   test('warmup skips unsafe devices and missing installed models', () async {
     final unsafe = createService(sentinel: _Sentinel(reason: 'unsafe'));
     final empty = createService(models: const []);

@@ -34,9 +34,33 @@ No in-app training is included.
 - Removal requires confirmation and addresses only the controlled imported copy.
   Leased inputs cannot be removed while a task is using them.
 
-This is not yet attachment injection into chat. There is no custom-task Run button
-until the native runner actually executes its selected input. No background upload
-or automatic execution occurs on import.
+This is not yet attachment injection into chat. The workspace now links to
+**Run custom algorithm**. Select an imported task JSON and input; the exact model
+is found by its declared SHA-256. No background upload or automatic execution
+occurs on import.
+
+## Working prototype
+
+`Saved → Files and algorithms → Import file` imports the JSON description, ONNX
+model and input separately. Then choose **Run custom algorithm**, the task JSON,
+and the CSV/image. The native CPU runner validates model tensor names and shapes.
+Results display named raw tensor values, with a labelled first-64-value preview.
+
+The first adapter supports one float32 input, float32 tensor outputs, numeric CSV,
+and opaque PNG/JPEG images. Image tasks explicitly declare RGB, stored orientation
+(no EXIF rotation), nearest-neighbour stretch resizing, NCHW/NHWC layout, scale,
+mean and standard deviation. Unsupported contracts fail rather than guessing.
+Stop requests native cancellation; navigation remains blocked until Run settles.
+Backgrounding requests Stop. A loaded chat model is released through its owner
+before the existing unloaded-runtime lease admits the ONNX task; chat assignments
+are preserved and the next chat request can reload its model.
+
+`tool/custom_tasks/export_reference_tasks.py` generates reproducible model/task/input
+files and checks their outputs on the host. It also runs in Colab with numpy,
+onnx, onnxruntime and Pillow installed. CSV sum returns `[3, 2, 0]`; the image
+channel-mean algorithm returns `[0.5, 0.25, 0.25]`. These are developer reference
+algorithms, not trained diagnostic models. Real exports need matching preprocessing
+and reference results. The app does not execute notebooks or Python scripts.
 
 ## Next vertical slice
 
@@ -75,14 +99,16 @@ termination. The merged debug manifest excludes the AAR telemetry initializer;
 environment telemetry is disabled explicitly. Conservative allocation admission
 is not a sandbox or a guarantee against every graph's internal allocation.
 
-Actual Android reference outputs, in-flight cancellation timing, cross-runtime
-safety/ownership coordination and the Run screen remain pending. No new phone
-installation was performed. Compilation and mocked admission tests do not prove
-Android inference.
+The Run screen and shared runtime/file ownership are now connected. Host checks:
+1,451 root tests, clean full analysis, four Android JVM checks and the existing
+78-disposition verifier. Actual Android reference outputs and in-flight
+cancellation timing remain pending until phone tests; compilation and simulated
+admission tests do not prove Android inference.
 
 ## Current limits
 
-Image/PDF/video decoding, ONNX execution in the app, custom-task import and chat
-attachments are still pending. Interrupted uncommitted file copies are not listed
+PDF/video processing, companion/external-weight ONNX bundles, arbitrary tensor
+types, task result export and chat attachments remain pending. Interrupted
+uncommitted file copies are not listed
 as installed inputs; resume/cleanup journaling is later work. Do not describe this
 file workspace as complete support for every algorithm or file format.

@@ -37,6 +37,7 @@ public class MainActivity extends FlutterActivity {
     public void configureFlutterEngine(FlutterEngine flutterEngine) {
         super.configureFlutterEngine(flutterEngine);
         var messenger = flutterEngine.getDartExecutor().getBinaryMessenger();
+        new com.vitalis.vitalis_app.tasks.OnnxTaskChannel(this).register(messenger);
         new MethodChannel(messenger, "vitalis/model_storage", StandardMethodCodec.INSTANCE,
                 messenger.makeBackgroundTaskQueue())
                 .setMethodCallHandler(new TransferStoragePreflight(this));
