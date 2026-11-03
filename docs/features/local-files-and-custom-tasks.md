@@ -62,17 +62,17 @@ channel-mean algorithm returns `[0.5, 0.25, 0.25]`. These are developer referenc
 algorithms, not trained diagnostic models. Real exports need matching preprocessing
 and reference results. The app does not execute notebooks or Python scripts.
 
-## Next vertical slice
+## Delivery order
 
-1. Android ONNX adapter: load a single-file model, bind named float tensors, run
+1. Implemented: Android ONNX adapter loads a single-file model, binds named float tensors, runs
    on CPU, close owned resources and acknowledge cancellation. Remove the AAR's
    telemetry initializer and disable telemetry before using the environment.
-2. Import a task manifest, its model and a CSV input into the existing workspace.
+2. Phone-tested: import a task manifest, its model and a CSV input into the existing workspace.
    Bind model identity by SHA-256; validate input names/types/shapes against the
    actual session. Keep paths under app control.
-3. Run the selected CSV through that model and display named outputs. Compare
+3. Phone-tested: run selected CSV through its model and display named outputs. Compare
    the phone result to the generated reference fixture.
-4. Add image preprocessing with explicit configuration and a reference image
+4. Phone-tested: image preprocessing with explicit configuration and a reference image
    model. Show unsupported operators/missing configuration as errors, not output.
 5. Add chat file associations, vision, documents/OCR and controlled tool routing
    through those same file/task contracts.
@@ -80,14 +80,15 @@ and reference results. The app does not execute notebooks or Python scripts.
 The first reference graph accepts `features` with two float columns and produces
 their sum as `prediction`. Reference rows `[1,2]`, `[-1,3]`, `[0,0]` produced
 `[3]`, `[2]`, `[0]` on CPU using ONNX Runtime 1.24.4 on the development host.
-Android execution remains unverified. The Android candidate is separately pinned
-at 1.31.1; matching results must be demonstrated there rather than inferred from
-the host. Binary fixtures stay outside Git.
+Android execution on 1.31.1 produced matching reference outputs in native tests
+and through the app screens. Binary fixtures stay outside Git. The
+[prototype validation report](onnx-prototype-validation.md) records the scope.
 
 ## Android runner foundation
 
-The CPU-only Java runner and reference instrumentation test compile against
-ONNX Runtime Android 1.31.1. Three API-28 Robolectric checks pass: cancellation
+The CPU-only Java runner and reference instrumentation tests execute on the OPPO
+with ONNX Runtime Android 1.31.1. Four API-28 Robolectric checks pass: image
+preprocessing, cancellation
 before admission, rejection of unowned files, and rejection of changed model
 bytes before native loading. The tests exposed an overly strict canonical-path
 check and missing fake-memory setup; corrected reruns and failed attempts are
@@ -99,11 +100,11 @@ termination. The merged debug manifest excludes the AAR telemetry initializer;
 environment telemetry is disabled explicitly. Conservative allocation admission
 is not a sandbox or a guarantee against every graph's internal allocation.
 
-The Run screen and shared runtime/file ownership are now connected. Host checks:
+The Run screen and shared runtime/file ownership are now connected and reference
+CSV/image flows pass on the phone. Host checks:
 1,451 root tests, clean full analysis, four Android JVM checks and the existing
-78-disposition verifier. Actual Android reference outputs and in-flight
-cancellation timing remain pending until phone tests; compilation and simulated
-admission tests do not prove Android inference.
+78-disposition verifier. Long in-flight cancellation timing remains unmeasured;
+the pre-cancelled test does not prove that timing.
 
 ## Current limits
 
