@@ -60,10 +60,15 @@ Follow-up investigation must distinguish context delivery from model arithmetic.
 Phone finding PHONE-PREP-STOP-20261104: Stop was hidden during preparation while
 Send was disabled. Composer busy state now includes local submission and the
 provider's preparation state. Two new widget regressions cover both entry paths;
-phone retest of this source correction remains pending a fresh build.
+build `c5ad968` passed its phone UI retest: Stop appeared during preparation,
+returned to editable input without a late reply, and a subsequent request
+returned the exact file access code. Native acknowledgement latency was not
+measured by this check.
 
 Raw evidence remains local under the November 4 chat-files phone-validation line;
 private screenshots and logs are not distributed with the source.
 
 Stop-fix host rerun: 1,471 root tests passed with seed 20261104; nine focused
-composer tests and full analysis passed. This remains distinct from phone retest.
+composer tests and full analysis passed. A fresh profile build succeeded,
+certificate comparison matched, and the in-place update succeeded after the
+normal OPPO installation confirmation. No uninstall or data clearing occurred.

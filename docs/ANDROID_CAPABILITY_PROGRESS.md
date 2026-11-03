@@ -8,7 +8,8 @@ The local workspace now has import/storage, text previews and removal implemente
 with focused tests and OPPO verification. Conversation TXT/CSV attachments now
 persist in schema 9; exact TXT retrieval, restart persistence, deletion guards
 and unsupported-image rejection passed on build `f47d2be`. CSV arithmetic failed
-(6 instead of 5), and preparation Stop needs its rebuilt-phone regression. A numeric ONNX/CSV reference graph passed on the development
+(6 instead of 5), and preparation Stop was fixed and phone-retested on `c5ad968` (timing remains
+unmeasured). A numeric ONNX/CSV reference graph passed on the development
 host and on the OPPO through the actual import/Run screens. CSV and image outputs
 match their references. Four JVM checks and four native phone tests pass; files
 survive explicit force-stop/relaunch, and wrong-input recovery passes. See
