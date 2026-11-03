@@ -144,6 +144,7 @@ kotlin {
 }
 
 dependencies {
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.31.1")
     val workManagerVersion = "2.12.0"
     @Suppress("UNCHECKED_CAST")
     val androidTestVersions = rootProject.extra["vitalisAndroidTestVersions"] as Map<String, String>

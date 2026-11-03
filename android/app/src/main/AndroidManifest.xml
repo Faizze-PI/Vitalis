@@ -23,6 +23,7 @@
         android:fullBackupContent="@xml/backup_rules"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:networkSecurityConfig="@xml/network_security_config">
+        <provider android:name="ai.onnxruntime.TelemetryInitializer" tools:node="remove"/>
         <activity
             android:name=".MainActivity"
             android:exported="true"

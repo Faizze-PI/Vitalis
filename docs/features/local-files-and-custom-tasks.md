@@ -60,6 +60,26 @@ Android execution remains unverified. The Android candidate is separately pinned
 at 1.31.1; matching results must be demonstrated there rather than inferred from
 the host. Binary fixtures stay outside Git.
 
+## Android runner foundation
+
+The CPU-only Java runner and reference instrumentation test compile against
+ONNX Runtime Android 1.31.1. Three API-28 Robolectric checks pass: cancellation
+before admission, rejection of unowned files, and rejection of changed model
+bytes before native loading. The tests exposed an overly strict canonical-path
+check and missing fake-memory setup; corrected reruns and failed attempts are
+retained separately. The task-manifest/CSV parser has 11 passing tests.
+
+The runner hashes the exact bytes it loads, checks named float32 tensor shapes,
+closes owned native resources, and detaches cancellation handles only after run
+termination. The merged debug manifest excludes the AAR telemetry initializer;
+environment telemetry is disabled explicitly. Conservative allocation admission
+is not a sandbox or a guarantee against every graph's internal allocation.
+
+Actual Android reference outputs, in-flight cancellation timing, cross-runtime
+safety/ownership coordination and the Run screen remain pending. No new phone
+installation was performed. Compilation and mocked admission tests do not prove
+Android inference.
+
 ## Current limits
 
 Image/PDF/video decoding, ONNX execution in the app, custom-task import and chat
