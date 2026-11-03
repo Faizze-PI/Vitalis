@@ -1,0 +1,37 @@
+{
+  "status": "PROBE_CANDIDATES_NOT_PRODUCTION_CAPABILITIES",
+  "llamaSourceLock": "../../third_party/llm_llamacpp/native/llama_cpp.lock.json",
+  "onnxRuntimeAndroid": {
+    "coordinate": "com.microsoft.onnxruntime:onnxruntime-android:1.31.1",
+    "artifactUrl": "https://repo.maven.apache.org/maven2/com/microsoft/onnxruntime/onnxruntime-android/1.31.1/onnxruntime-android-1.31.1.aar",
+    "sha256": "d4d50660300ed2c4f38ffdfd5ab5bfa3a22f995f282dda24f42ea3ea55467b49",
+    "hashAuthority": "Local SHA-256 of official Maven artifact; repository SHA-1 checked for transport consistency only",
+    "declaredMinSdk": 24,
+    "requiredAbi": "arm64-v8a",
+    "telemetryInitializerMustBeRemoved": "ai.onnxruntime.TelemetryInitializer",
+    "environmentTelemetryMustBeDisabled": true,
+    "deviceInference": "NOT_TESTED"
+  },
+  "visionReference": {
+    "repository": "unsloth/Qwen3.5-0.8B-GGUF",
+    "revision": "6ab461498e2023f6e3c1baea90a8f0fe38ab64d0",
+    "artifacts": [
+      {
+        "role": "base",
+        "file": "Qwen3.5-0.8B-Q8_0.gguf",
+        "bytes": 811843840,
+        "sha256": "0ad885ffd4bb022fc4f0d33a3308fa108ef8613159d3b3a67e23abca056b7a6c"
+      },
+      {
+        "role": "projector",
+        "file": "mmproj-F16.gguf",
+        "bytes": 204987232,
+        "sha256": "56e4c6cfe73b0c82e3e82bc518d7591997e61d81f723fc41a586f4fa69ea2453"
+      }
+    ],
+    "hashAuthority": "Publisher LFS SHA-256 from immutable Hugging Face revision",
+    "imageInference": "NOT_TESTED",
+    "encoderCancellation": "NOT_TESTED",
+    "combinedVisionAndTools": "NOT_TESTED"
+  }
+}
