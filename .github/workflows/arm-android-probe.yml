@@ -1,0 +1,39 @@
+name: Native ARM Android environment probe
+on:
+  workflow_dispatch:
+  push:
+    branches: [ci/behavior-security-load-20261104]
+    paths: ['.github/workflows/arm-android-probe.yml']
+permissions:
+  contents: read
+jobs:
+  capability:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 15
+    steps:
+      - name: Probe hosted ARM kernel and Android container prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p arm-probe
+          exec > >(tee arm-probe/environment.log) 2>&1
+          uname -a
+          test "$(uname -m)" = aarch64
+          getconf PAGESIZE
+          docker version
+          if ! sudo modprobe binder_linux devices=binder,hwbinder,vndbinder; then
+            sudo apt-get update -qq
+            sudo apt-get install -y "linux-modules-extra-$(uname -r)"
+            sudo modprobe binder_linux devices=binder,hwbinder,vndbinder
+          fi
+          lsmod | grep binder
+          ls -l /dev/*binder* || true
+          test -d /sys/module/binder_linux
+          echo 'ARM host and Android binder prerequisites available'
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: native-arm-android-environment
+          path: arm-probe/
+          retention-days: 14
+          if-no-files-found: error
