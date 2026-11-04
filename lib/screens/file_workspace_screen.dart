@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../services/local_file_workspace.dart';
 import '../services/startup_access_guard.dart';
 import 'custom_task_screen.dart';
+import 'csv_analysis_screen.dart';
 import '../database/database_helper.dart';
 
 typedef WorkspaceSelection = ({
@@ -243,6 +244,26 @@ class _FileWorkspaceScreenState extends State<FileWorkspaceScreen> {
                     },
               icon: const Icon(Icons.play_arrow),
               label: const Text('Run custom algorithm'),
+            ),
+          if (widget.onSelect == null)
+            OutlinedButton.icon(
+              onPressed:
+                  _busy ||
+                      !(_files?.any(
+                            (f) => f.name.toLowerCase().endsWith('.csv'),
+                          ) ??
+                          false)
+                  ? null
+                  : () => Navigator.of(context).push<void>(
+                      MaterialPageRoute(
+                        builder: (_) => CsvAnalysisScreen(
+                          workspace: _workspace,
+                          files: List.unmodifiable(_files!),
+                        ),
+                      ),
+                    ),
+              icon: const Icon(Icons.calculate_outlined),
+              label: const Text('Analyze CSV'),
             ),
           if (_busy || (_files == null && _error == null))
             const LinearProgressIndicator(

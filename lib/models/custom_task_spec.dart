@@ -1,3 +1,4 @@
+import 'csv_table.dart';
 import 'dart:typed_data';
 
 /// Input preparation is declared by the exported task, never guessed from a name.
@@ -138,60 +139,10 @@ final class CustomTaskSpec {
   Float32List csvValues(String source) {
     if (kind != 'csv')
       throw const FormatException('The selected task requires an image.');
-    final rows = <List<String>>[];
-    var row = <String>[];
-    var cell = StringBuffer();
-    var quoted = false;
-    var closed = false;
-    void field() {
-      row.add(cell.toString());
-      cell = StringBuffer();
-      closed = false;
-    }
-
-    void line() {
-      field();
-      rows.add(row);
-      row = [];
-      if (rows.length > shape.first + (csvHeader ? 1 : 0))
-        throw const FormatException(
-          'CSV has more rows than the task declares.',
-        );
-    }
-
-    final text = source.startsWith('\ufeff') ? source.substring(1) : source;
-    for (var i = 0; i < text.length; i++) {
-      final ch = text[i];
-      if (quoted) {
-        if (ch == '"') {
-          if (i + 1 < text.length && text[i + 1] == '"') {
-            cell.write('"');
-            i++;
-          } else {
-            quoted = false;
-            closed = true;
-          }
-        } else {
-          cell.write(ch);
-        }
-      } else if (ch == ',') {
-        field();
-      } else if (ch == '\r' || ch == '\n') {
-        line();
-        if (ch == '\r' && i + 1 < text.length && text[i + 1] == '\n') i++;
-      } else if (closed) {
-        if (ch.trim().isNotEmpty)
-          throw const FormatException('Invalid text after a quoted CSV value.');
-      } else if (ch == '"') {
-        if (cell.isNotEmpty)
-          throw const FormatException('Invalid CSV quotation.');
-        quoted = true;
-      } else {
-        cell.write(ch);
-      }
-    }
-    if (quoted) throw const FormatException('Unclosed CSV quotation.');
-    if (cell.isNotEmpty || row.isNotEmpty || closed) line();
+    final rows = parseCsvTable(
+      source,
+      maxRows: shape.first + (csvHeader ? 1 : 0),
+    );
     if (rows.length != shape.first + (csvHeader ? 1 : 0) ||
         rows.any((r) => r.length != shape[1]))
       throw const FormatException(
