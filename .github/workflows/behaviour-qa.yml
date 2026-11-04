@@ -9,6 +9,10 @@ on:
         type: string
   push:
     branches: [ci/behavior-security-load-20261104]
+    paths:
+      - '.github/workflows/behaviour-qa.yml'
+      - 'tool/qa/**'
+      - 'docs/testing/FIVE_SUITE_QA.md'
 permissions:
   contents: read
   actions: read
