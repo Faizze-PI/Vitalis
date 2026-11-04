@@ -35,6 +35,20 @@ class ReportIntegrity(unittest.TestCase):
             with self.assertRaises(AssertionError): runner.bas(report)
         self.assertEqual(len(report.cases),1)
         self.assertEqual(report.cases[0]['status'],'PASS')
+    def test_history_fixture_rejects_personal_devices(self):
+        from history_fixture import validate_environment
+        for args in [('472fa620','true','0'),('emulator-5554','','1'),('emulator-5554','true','0')]:
+            with self.assertRaises(AssertionError): validate_environment(*args)
+        validate_environment('emulator-5554','true','1')
+    def test_bundle_remains_downloadable_when_suites_fail(self):
+        import subprocess,sys
+        root=self.temp/'qa-bundle'; root.mkdir()
+        source=Path(__file__).resolve().parent/'bundle.py'
+        env={**os.environ,'QA_JOB_RESULTS':json.dumps({s:{'result':'failure'} for s in ['selenium','appium','bas','dast','load']}),'GITHUB_STEP_SUMMARY':str(self.temp/'summary.md')}
+        result=subprocess.run([sys.executable,str(source)],cwd=self.temp,env=env)
+        self.assertEqual(result.returncode,1)
+        self.assertTrue((root/'FINAL_TEST_SUMMARY.xlsx').exists())
+        self.assertFalse(root.name.startswith('.'))
     def test_minimum_has_five_independent_suite_gates(self):
         import yaml
         workflow=yaml.safe_load((Path(__file__).resolve().parents[2]/'.github/workflows/behaviour-qa.yml').read_text())

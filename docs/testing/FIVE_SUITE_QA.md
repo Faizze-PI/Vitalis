@@ -4,7 +4,7 @@ The workflow `.github/workflows/behaviour-qa.yml` tests the unchanged applicatio
 
 | Suite | Actual coverage | Important scope boundary |
 |---|---|---|
-| Appium | 300 combinations: 12 destination transitions, five font scales, five orientation/lifecycle conditions; accessible destination-content assertions | Navigation compatibility, not every feature or native-model accuracy |
+| Appium | 300 combinations: 12 destination transitions, five font scales, five orientation/lifecycle conditions; accessible destination-content assertions | Saved-history / unavailable-model navigation compatibility, not every feature or native-model accuracy |
 | Selenium/API | Six schema contracts for each of 50 actual public GGUF search records; direct status/content-type check; browser network evidence | 300 schema checks, two read-only public requests, not 300 independent network requests |
 | BAS | Named adversarial, failure, lifecycle and preservation regressions from real VITALIS source tests; full root evidence retained | Application-level defensive simulations, not enterprise endpoint-agent BAS or a penetration-testing certificate |
 | DAST | 300 running-APK external-intent fuzz scenarios: ten schemes, ten payload classes, three actions; private-service and file-isolation probes | Ingress non-crashing and isolation checks do not establish absence of all vulnerabilities |
@@ -25,3 +25,9 @@ Appium listens only on localhost, without relaxed-security flags. All attack/fuz
 Official references: [Appium UiAutomator2](https://appium.github.io/appium-uiautomator2-driver/), [Selenium WebDriver](https://www.selenium.dev/documentation/webdriver/), [Android ARM emulator support](https://android-developers.googleblog.com/2020/03/run-arm-apps-on-android-emulator.html).
 
 Status: implementation under test. No new workflow PASS is claimed until actual hosted execution and downloaded artifacts have been inspected.
+
+## Disposable data prerequisites
+
+Appium first checks that a fresh installation displays model setup. Navigation/load cases then use one saved-history fixture in the app-created database, with no model records or invented model validation. Fixture writes require GitHub Actions, an emulator serial and the Android emulator property; the stopped database is checked, seeded, checkpointed and hash-verified before app restart. This exercises the supported saved-history / unavailable-model state. No personal handset or user database is touched.
+
+Host execution explicitly includes both `test` and `test_benchmarks`; the latter contains three established core-300 cases. Failed completeness must preserve all completed case rows. Setup fallback writes a failure report only when no report already exists. The final bundle uses a non-hidden artifact directory so GitHub uploads failing as well as passing workbooks.
