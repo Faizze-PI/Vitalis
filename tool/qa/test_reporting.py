@@ -44,6 +44,15 @@ class ReportIntegrity(unittest.TestCase):
         for args in [('127.0.0.1:5555','true','','redroid','other','123'),
                      ('472fa620','true','','redroid','123','123')]:
             with self.assertRaises(AssertionError): validate_environment(*args)
+    def test_navigation_selector_rejects_content_and_back_buttons(self):
+        import re
+        from mobile import tab_description_pattern
+        for label in ['Chats','Models','Saved','Settings']:
+            pattern=tab_description_pattern(label)
+            self.assertTrue(re.fullmatch(pattern,label))
+            self.assertTrue(re.fullmatch(pattern,label+'\nTab 1 of 4'))
+            for other in ['Back to '+label,label+' chats are available', 'Open '+label]:
+                self.assertIsNone(re.fullmatch(pattern,other))
     def test_bundle_remains_downloadable_when_suites_fail(self):
         import subprocess,sys
         root=self.temp/'qa-bundle'; root.mkdir()

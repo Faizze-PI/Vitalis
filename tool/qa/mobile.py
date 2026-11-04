@@ -1,7 +1,12 @@
-import json, os, statistics, subprocess, time
+import json, os, re, statistics, subprocess, time
 from urllib.parse import quote
 from report import require
 PACKAGE='com.vitalis.vitalis_app'
+def tab_description_pattern(label):
+    require(label in ['Chats','Models','Saved','Settings'],'Unknown navigation destination')
+    return '(?s)^'+re.escape(label)+r'(?:
+.*)?$'
+
 def adb(*args,check=True):
     r=subprocess.run(['adb',*args],text=True,capture_output=True,timeout=45)
     if check: require(r.returncode==0,r.stdout+r.stderr)
@@ -18,7 +23,7 @@ def run(report):
         'appium:newCommandTimeout':120,'appium:adbExecTimeout':60000,'appium:appWaitDuration':90000})
     driver=webdriver.Remote('http://127.0.0.1:4723',options=options)
     def tab(label):
-        selector=f'new UiSelector().descriptionContains("{label}").clickable(true)'
+        selector='new UiSelector().descriptionMatches('+json.dumps(tab_description_pattern(label))+').clickable(true)' 
         WebDriverWait(driver,90).until(lambda d:d.find_element(AppiumBy.ANDROID_UIAUTOMATOR,selector)).click()
         markers={'Chats':'New Chat','Models':'Model Library','Saved':'Reusable context for your conversations','Settings':'Appearance'}
         WebDriverWait(driver,30).until(lambda d:markers[label] in d.page_source)
