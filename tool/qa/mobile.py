@@ -19,7 +19,7 @@ def adb(*args,check=True):
     if check: require(r.returncode==0,r.stdout+r.stderr)
     return r.stdout+r.stderr
 
-def run(report):
+def run(report,navigation_only=False):
     from appium import webdriver
     from appium.options.android import UiAutomator2Options
     from selenium.webdriver.support.ui import WebDriverWait
@@ -44,6 +44,11 @@ def run(report):
             tab('Settings')
         report.case('Fresh model setup then saved-history fixture reaches navigation',prepare,'Startup prerequisites')
         require(report.cases[-1]['status']=='PASS','Startup gate failed; dependent UI scenarios cannot execute')
+        if navigation_only:
+            for label in ['Chats','Models','Saved','Settings']:
+                report.case('Navigation environment: '+label,lambda label=label:tab(label),'Environment probe')
+                require(report.cases[-1]['status']=='PASS','Navigation probe failed')
+            return
         if report.suite=='appium':
             for font in [.85,1.0,1.15,1.3,1.5]:
                 adb('shell','settings','put','system','font_scale',str(font))

@@ -22,4 +22,8 @@ for attempt in range(60):
     except OSError: time.sleep(1)
 else: raise SystemExit('Appium server did not become ready')
 PY
-python tool/qa/run.py
+if [[ "${QA_NAVIGATION_SMOKE:-0}" = 1 ]]; then
+  python tool/qa/navigation_smoke.py
+else
+  python tool/qa/run.py
+fi
