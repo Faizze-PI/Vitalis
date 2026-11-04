@@ -44,3 +44,9 @@ its telemetry initializer is removed from the merged debug manifest and runtime
 telemetry is explicitly disabled. Keep CPU default, local inference, protected
 data, Provider, API 28/arm64 and the existing signing boundaries. No fine-tuning,
 arbitrary imported code, desktop rollout or publication is part of this stage.
+
+Model-dependent requirement: vision/tools must be derived from the selected
+verified bundle and runtime. LFM3-Omni-2B currently requires a newer native backend
+than the locked b10727; see [capability requirements](features/model-dependent-capabilities.md).
+Image-preview build f018cec: full root 1,492 passed; PNG preview physically
+verified on OPPO. JPEG decoding is host-tested, not yet physically verified.

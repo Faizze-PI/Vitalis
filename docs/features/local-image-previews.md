@@ -16,9 +16,15 @@ compatibility or medical interpretation is inferred from the preview.
 
 Tests exercise real PNG/JPEG decoding, aspect-preserving downscaling, byte/pixel
 budgets, modified bytes, malformed data and successful decoding after rejection.
-Phone verification is pending a new build. The already qualified CSV APK does
-not include this change.
+Build `f018cec` passed a real PNG preview on OPPO API 36: the RGB fixture was
+visually inspected, correct 2×2 dimensions and accessibility label appeared, and
+the dialog closed normally. Seventeen upgrade-inventory entries matched. JPEG
+remains host-tested only. The scoped app log contained no fatal-pattern matches.
 
 Nine focused tests passed, including PNG/JPEG and workspace regressions. Full
 analysis passed. The first hardcode check caught a missing annotation prefix on
 the thumbnail edge; corrected annotation is checked separately.
+
+Full root rerun: 1,492 tests passed with seed 20261104. The profile APK built
+successfully and was installed in place only after certificate comparison.
+Hardcode verification passed 81 dispositions after the annotation correction.
