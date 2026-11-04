@@ -18,6 +18,23 @@ class ReportIntegrity(unittest.TestCase):
         r=self.make(300); self.assertEqual(r.write(),0)
         self.assertEqual(len(json.loads((r.out/'results.json').read_text())['cases']),300)
     def test_one_failure_cannot_be_hidden(self): self.assertEqual(self.make(300,True).write(),1)
+    def test_bas_retains_completed_cases_when_catalogue_is_incomplete(self):
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        import sys
+        import run as runner
+        sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'reporting'))
+        import core_report
+        events=[{'type':'suite','suite':{'id':0,'path':str(runner.ROOT/'test/services/model_downloader_test.dart')}},
+                {'type':'testStart','test':{'id':1,'name':'reject unsafe path','suiteID':0},'time':0},
+                {'type':'testDone','testID':1,'result':'success','time':1},
+                {'type':'done','success':True,'time':2}]
+        result=SimpleNamespace(returncode=0,stdout='\n'.join(json.dumps(e) for e in events),stderr='')
+        report=module.Report('bas')
+        with patch.object(runner.subprocess,'run',return_value=result),patch.object(core_report,'write_core_report',return_value=False):
+            with self.assertRaises(AssertionError): runner.bas(report)
+        self.assertEqual(len(report.cases),1)
+        self.assertEqual(report.cases[0]['status'],'PASS')
     def test_minimum_has_five_independent_suite_gates(self):
         import yaml
         workflow=yaml.safe_load((Path(__file__).resolve().parents[2]/'.github/workflows/behaviour-qa.yml').read_text())
