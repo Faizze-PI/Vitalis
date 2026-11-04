@@ -54,6 +54,23 @@ class ReportIntegrity(unittest.TestCase):
         self.assertEqual(metrics['driver_http_error_responses'],1)
         self.assertEqual(metrics['driver_http_median_ms'],17.5)
         self.assertNotIn('driver_http_median_ms',appium_http_metrics('no HTTP traffic'))
+    def test_navigation_lookup_checks_actual_description_after_prefix_query(self):
+        from mobile import find_navigation_element
+        class Element:
+            def __init__(self,label): self.label=label
+            def get_attribute(self,name):
+                self.assert_name=name
+                return self.label
+        wrong=Element('Saved chats are available')
+        right=Element('Saved\nTab 3 of 4')
+        class Driver:
+            def find_elements(self,by,selector):
+                self.query=(by,selector)
+                return [wrong,right]
+        driver=Driver()
+        self.assertIs(find_navigation_element(driver,'Saved'),right)
+        self.assertIn('descriptionStartsWith("Saved")',driver.query[1])
+        self.assertNotIn('descriptionMatches',driver.query[1])
     def test_navigation_selector_rejects_content_and_back_buttons(self):
         import re
         from mobile import tab_description_pattern
