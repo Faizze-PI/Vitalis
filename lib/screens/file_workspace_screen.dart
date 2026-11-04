@@ -7,6 +7,7 @@ import '../services/local_file_workspace.dart';
 import '../services/startup_access_guard.dart';
 import 'custom_task_screen.dart';
 import 'csv_analysis_screen.dart';
+import '../services/local_image_preview.dart';
 import '../database/database_helper.dart';
 
 typedef WorkspaceSelection = ({
@@ -113,6 +114,48 @@ class _FileWorkspaceScreenState extends State<FileWorkspaceScreen> {
   Future<void> _preview(WorkspaceFile item) async {
     setState(() => _busy = true);
     try {
+      if (LocalImagePreview.supports(item.name)) {
+        final preview = await LocalImagePreview(
+          workspace: _workspace,
+        ).load(item);
+        try {
+          if (!mounted) return;
+          await showDialog<void>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text(item.name),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Semantics(
+                      label: 'Image preview ${item.name}',
+                      image: true,
+                      child: RawImage(
+                        image: preview.image,
+                        width: 240,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    Text(
+                      '${preview.sourceWidth} × ${preview.sourceHeight} pixels. Preview only; no model analysis has run.',
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close'),
+                ),
+              ],
+            ),
+          );
+        } finally {
+          preview.image.dispose();
+        }
+        return;
+      }
       final text = await _workspace.withFile(item.id, (file) async {
         final bytes = await file
             .openRead(
@@ -152,11 +195,12 @@ class _FileWorkspaceScreenState extends State<FileWorkspaceScreen> {
           ],
         ),
       );
-    } catch (_) {
+    } catch (error) {
       if (mounted)
         setState(
-          () =>
-              _error = 'Preview unavailable. The stored file was not modified.',
+          () => _error = error is ImagePreviewError
+              ? error.message
+              : 'Preview unavailable. The stored file was not modified.',
         );
     } finally {
       if (mounted) setState(() => _busy = false);

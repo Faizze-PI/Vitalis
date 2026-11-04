@@ -32,15 +32,19 @@ and network permissions. Before any integration, remove its telemetry initialize
 disable environment telemetry, and test that no telemetry runs. Neither API-floor
 declaration nor a Java signature proves Android execution or timely cancellation.
 
-Next: isolated Android inference tests with synthetic tensors, reference results,
-termination, resource closure, native dependencies and API-28 execution. No in-app
-training, Python execution or model-supplied custom-op binaries are authorized.
+API-36 arm64 prototype execution now passes CSV/image references, pretrained
+MobileNetV2 numerical comparison and native cancellation/recovery. See
+`docs/features/onnx-prototype-validation.md`. API-28 execution, expanded lifecycle
+and full release gates remain pending. No in-app training, Python execution or
+model-supplied custom-op binaries are authorized.
 
 ## Tool calling
 
 The vendored generic tool API is not proof of support: the persistent helper does
 not currently receive tool schemas or preserve tool-call identity in its message
 projection. Its generic executor also logs arguments/results. Do not enable it.
+The explicit local CSV statistics tool is implemented and phone-tested, with no
+model execution. It does not establish automatic tool calling.
 Next: model-template schema/result round-trip tests, request-scoped typed parsing,
 and a real model calling one explicitly registered local calculation tool. Do not
 execute arbitrary model-provided function names or code.

@@ -10,7 +10,9 @@
     "requiredAbi": "arm64-v8a",
     "telemetryInitializerMustBeRemoved": "ai.onnxruntime.TelemetryInitializer",
     "environmentTelemetryMustBeDisabled": true,
-    "deviceInference": "NOT_TESTED"
+    "deviceInference": "VERIFIED_API36_ARM64_CPU_PROTOTYPE",
+    "deviceEvidence": "docs/features/onnx-prototype-validation.md",
+    "api28Execution": "PENDING"
   },
   "visionReference": {
     "repository": "unsloth/Qwen3.5-0.8B-GGUF",
