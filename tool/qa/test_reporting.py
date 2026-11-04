@@ -44,6 +44,15 @@ class ReportIntegrity(unittest.TestCase):
         for args in [('127.0.0.1:5555','true','','redroid','other','123'),
                      ('472fa620','true','','redroid','123','123')]:
             with self.assertRaises(AssertionError): validate_environment(*args)
+    def test_appium_http_metrics_count_actual_logs(self):
+        from mobile import appium_http_metrics
+        text='[HTTP] --> GET /status\n[HTTP] <-- GET /status 200 10 ms - 2\n[HTTP] --> POST /session/x/element\n[HTTP] <-- POST /session/x/element 404 25 ms - 40\n[HTTP] --> GET /pending\n'
+        metrics=appium_http_metrics(text)
+        self.assertEqual(metrics['driver_http_requests'],3)
+        self.assertEqual(metrics['driver_http_responses'],2)
+        self.assertEqual(metrics['driver_http_error_responses'],1)
+        self.assertEqual(metrics['driver_http_median_ms'],17.5)
+        self.assertNotIn('driver_http_median_ms',appium_http_metrics('no HTTP traffic'))
     def test_navigation_selector_rejects_content_and_back_buttons(self):
         import re
         from mobile import tab_description_pattern

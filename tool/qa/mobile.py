@@ -94,7 +94,22 @@ def dast(report):
     report.case('Private files inaccessible to shell',lambda:require('permission denied' in adb('shell','ls','/data/user/0/'+PACKAGE+'/files',check=False).lower(),'Private files accessible'),'File isolation')
     report.metrics['scope']='300 external-intent fuzz scenarios (10 schemes x 10 payload classes x 3 actions), plus isolation probes. Non-crashing ingress alone is not proof of security.'
 
+def appium_http_metrics(text):
+    requests=re.findall(r'\[HTTP\] --> (?:GET|POST|DELETE|PUT|PATCH|OPTIONS|HEAD) ',text)
+    responses=re.findall(r'\[HTTP\] <-- (?:GET|POST|DELETE|PUT|PATCH|OPTIONS|HEAD) \S+ (\d{3}) ([\d.]+) ms',text)
+    metrics=dict(driver_http_requests=len(requests),driver_http_responses=len(responses),
+                 driver_http_error_responses=sum(int(status)>=400 for status,_ in responses))
+    if responses:
+        times=sorted(float(duration) for _,duration in responses)
+        metrics.update(driver_http_median_ms=statistics.median(times),
+                       driver_http_p95_ms=times[min(len(times)-1,__import__('math').ceil(.95*len(times))-1)])
+    return metrics
+
 def logs(report):
+    driver_log=report.out/'appium.log'
+    if driver_log.exists():
+        report.metrics.update(appium_http_metrics(driver_log.read_text(errors='replace')))
+        report.metrics['request_log_scope']='Local Appium driver HTTP traffic, not model token rate or Hub load'
     crash=adb('logcat','-d','-b','crash'); (report.out/'crash.log').write_text(crash,encoding='utf-8')
     report.case('No attributable fatal crash',lambda:require(PACKAGE not in crash,'Inspect crash.log'),'Crash audit')
     source=report.out.parents[1]/'.qa-apk'/'source.txt'
