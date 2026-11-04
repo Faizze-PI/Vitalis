@@ -72,6 +72,28 @@ class ReportIntegrity(unittest.TestCase):
         self.assertEqual(result.returncode,1)
         self.assertTrue((root/'FINAL_TEST_SUMMARY.xlsx').exists())
         self.assertFalse(root.name.startswith('.'))
+    def test_bundle_rejects_contradictory_results_and_survives_bad_json(self):
+        import subprocess,sys
+        root=self.temp/'qa-bundle'; root.mkdir()
+        names=['selenium','appium','bas','dast','load']
+        for name in names:
+            folder=root/name;folder.mkdir()
+            data=dict(suite=name,status='PASS',counts={'PASS':300,'FAIL':0,'SKIP':0},
+                      cases=[{'id':str(i),'status':'PASS'} for i in range(300)])
+            if name=='appium': data['cases'][0]['status']='FAIL'
+            (folder/'results.json').write_text(json.dumps(data))
+        (root/'broken.json').write_text('{')
+        # A malformed suite report must still leave a downloadable HOLD workbook.
+        (root/'load'/'results.json').write_text('{')
+        env={**os.environ,'QA_JOB_RESULTS':json.dumps({s:{'result':'success'} for s in names}),
+             'GITHUB_STEP_SUMMARY':str(self.temp/'summary.md')}
+        result=subprocess.run([sys.executable,str(Path(__file__).resolve().parent/'bundle.py')],cwd=self.temp,env=env)
+        self.assertEqual(result.returncode,1)
+        self.assertTrue((root/'FINAL_TEST_SUMMARY.json').exists())
+        self.assertTrue((root/'FINAL_TEST_SUMMARY.xlsx').exists())
+        rows=json.loads((root/'FINAL_TEST_SUMMARY.json').read_text())['suites']
+        self.assertEqual(next(r for r in rows if r[0]=='appium')[-1],'HOLD')
+        self.assertEqual(next(r for r in rows if r[0]=='load')[-1],'HOLD')
     def test_minimum_has_five_independent_suite_gates(self):
         import yaml
         workflow=yaml.safe_load((Path(__file__).resolve().parents[2]/'.github/workflows/behaviour-qa.yml').read_text())
