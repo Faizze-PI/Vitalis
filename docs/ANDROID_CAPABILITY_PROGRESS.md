@@ -55,3 +55,8 @@ Algorithm retest at e89a501: CSV/image references and repeated image execution
 pass; MobileNet first64 agrees within 7.704e-6. A stale-result display bug was
 fixed and physically retested. Root 1,493 pass and analysis clean. Newer backend
 upgrade is deferred by the user; existing ONNX execution is independent of it.
+
+Simplified algorithm packages: transactional ZIP store foundation implemented
+and tested (1,504 root pass; 11 focused; analysis clean). Package picker/library,
+native runner integration and phone validation remain pending. The installed
+APK still uses the separate-file custom-task flow.

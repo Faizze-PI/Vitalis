@@ -16,3 +16,7 @@ VITALIS modifications include persistent runtime ownership/cancellation, native 
 Before distributing application binaries, verify the generated dependency notices and licences for the exact locked build. This source preview is not a complete binary-distribution compliance certificate.
 
 Windows preview packages also include the SQLite runtime supplied by the locked sqflite_common_ffi package (SQLite public-domain terms and the package licence) and Microsoft Visual C++ redistributable DLLs from the installed build tools (Microsoft redistribution terms). Generated Flutter dependency notices and native upstream licences accompany the portable package.
+
+Algorithm package import uses archive 4.6.0 (MIT; Brendan Duncan attribution)
+and its locked posix dependency. Preserve their generated Flutter licence notices
+with distributed builds; model-package weights retain their own publisher terms.
