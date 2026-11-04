@@ -1,4 +1,4 @@
-import json, os, re, statistics, subprocess, time
+import json, math, os, re, statistics, subprocess, time
 from urllib.parse import quote
 from report import require
 PACKAGE='com.vitalis.vitalis_app'
@@ -95,6 +95,7 @@ def dast(report):
     report.metrics['scope']='300 external-intent fuzz scenarios (10 schemes x 10 payload classes x 3 actions), plus isolation probes. Non-crashing ingress alone is not proof of security.'
 
 def appium_http_metrics(text):
+    text=re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", text)
     requests=re.findall(r'\[HTTP\] --> (?:GET|POST|DELETE|PUT|PATCH|OPTIONS|HEAD) ',text)
     responses=re.findall(r'\[HTTP\] <-- (?:GET|POST|DELETE|PUT|PATCH|OPTIONS|HEAD) \S+ (\d{3}) ([\d.]+) ms',text)
     metrics=dict(driver_http_requests=len(requests),driver_http_responses=len(responses),
@@ -102,7 +103,7 @@ def appium_http_metrics(text):
     if responses:
         times=sorted(float(duration) for _,duration in responses)
         metrics.update(driver_http_median_ms=statistics.median(times),
-                       driver_http_p95_ms=times[min(len(times)-1,__import__('math').ceil(.95*len(times))-1)])
+                       driver_http_p95_ms=times[min(len(times)-1,math.ceil(.95*len(times))-1)])
     return metrics
 
 def logs(report):
