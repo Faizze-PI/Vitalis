@@ -28,7 +28,11 @@ on file I/O under the widget fake clock; that attempt is retained. Screen tests
 now inject the calculation service; the service tests retain real filesystem,
 hash verification and worker-isolate execution.
 
-Phone and full qualification results will be recorded after the new build runs.
+Phone build `b881d25` passed explicit column 2 (sum 5), column 1 (sum 0),
+invalid-column rejection, correction/retry, header-off text rejection and header
+restoration/retry on OPPO API 36. Seventeen inventory entries matched before/after
+the certificate-matched in-place update. No data clearing was used. Full expanded
+Android qualification and automatic model tool calling remain incomplete.
 CSV parsing follows the quoting model in RFC 4180:
 https://www.rfc-editor.org/rfc/rfc4180
 Isolate execution follows Dart's supported API:

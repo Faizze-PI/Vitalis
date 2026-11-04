@@ -32,11 +32,11 @@ two defects physically.
 | 4. Complete model bundles | Not started | Candidate base/projector pair is hash-pinned for probes; app imports still support text GGUF only. |
 | 5. Vision inference | Not started | A compiled library is not image inference. |
 | 6. PDF/OCR/citations | Not started | Requires bounded extraction and qualified offline OCR. |
-| 7. Controlled local tools | Not started | Generic vendored executor is not enabled as a product capability. |
+| 7. Controlled local tools | Explicit CSV tool phone-tested | Column count/sum/min/max/mean, invalid-column retry and header validation pass. Automatic model schema/call/result round trip remains pending; generic vendored executor stays disabled. |
 | 8. Colab ONNX imports | Working local prototype | Task JSON binds model hash and preprocessing. CSV/image references and real pretrained MobileNetV2 run through phone UI. First 64 MobileNet scores numerically compared; accuracy and additional Colab exports still need qualification. |
 | 9. Video frames | Not started | External-FFmpeg mtmd video helper remains disabled. |
 | 10. Combined safety/recovery | Partial | Shared leases, late-result rejection, wrong-input recovery, native Loop cancellation and subsequent CSV inference pass. UI Stop timing, active-task safety/lifecycle and GGUF/ONNX switching need physical tests. |
-| 11. Expanded Android qualification | Prototype scope tested | Root 1,451 pass; clean analysis; JVM 4 pass; native phone 4 pass; CSV/image/pretrained UI runs pass. Full API-28/emulator/release/performance qualification remains incomplete. |
+| 11. Expanded Android qualification | Prototype scope tested | Root 1,488 pass at CSV checkpoint; clean analysis; historical JVM 4 pass and native phone 4 pass; CSV/image/pretrained UI runs pass. Full API-28/emulator/release/performance qualification remains incomplete. |
 
 Probe instructions and candidate locks are in `tool/backend_probes`. Binaries and
 large fixtures remain outside Git. ONNX 1.31.1 is now an Android dependency;
