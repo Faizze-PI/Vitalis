@@ -62,5 +62,15 @@ remained `[0.5,0.25,0.25]` after the shared CSV-parser and file-preview changes.
 
 A medium result-attribution defect was reproduced: choosing another task/input
 left the previous result and completion status visible. Both selectors now clear
-those fields on identity change. Seventeen focused regressions pass; rebuilding
-and physical retesting are pending. No inference-result values were altered.
+those fields on identity change. Seventeen focused regressions and 1,493 root
+tests pass; analysis is clean. Build `e89a501` was installed after certificate
+comparison and passed both selection-change retests on the OPPO. CSV and image
+results remained correct; a repeated image task also passed. No inference-result
+values were altered.
+
+MobileNetV2 was rerun through the UI on `e89a501`: shape `[1,1000]`, first 64 values
+checked, maximum absolute difference `7.703900337219238e-6` against the same host
+reference (tolerance `1e-4`). The nine runtime libraries excluding Flutter/app
+payloads are byte-identical to the preceding build whose four native tests passed.
+These results remain prototype-scope evidence, not full Android ratification.
+The newer llama.cpp/LFM3 backend upgrade is deferred at the user's request.
