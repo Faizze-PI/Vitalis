@@ -6,6 +6,7 @@ on:
     paths: ['.github/workflows/arm-android-probe.yml']
 permissions:
   contents: read
+  actions: read
 jobs:
   capability:
     runs-on: ubuntu-24.04-arm
@@ -30,6 +31,63 @@ jobs:
           ls -l /dev/*binder* || true
           test -d /sys/module/binder_linux
           echo 'ARM host and Android binder prerequisites available'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: QA-arm64-APK
+          path: .qa-apk
+          run-id: '41843497240'
+          github-token: ${{ github.token }}
+      - name: Boot native ARM Android and test unchanged APK startup
+        shell: bash
+        env:
+          ANDROID_SERIAL: 127.0.0.1:5555
+        run: |
+          set -euo pipefail
+          exec > >(tee arm-probe/native-android.log) 2>&1
+          sudo apt-get update -qq
+          sudo apt-get install -y adb
+          image=redroid/redroid@sha256:dc2024a999dd0acb1112a23cddc9537ec8cb60a0dbe5a87ce9fbd75a2f5e94d2
+          docker pull "$image"
+          docker image inspect "$image" --format '{{.Architecture}}'
+          docker run -d --name vitalis-arm-probe --privileged --cpus=3 --memory=6g -p 127.0.0.1:5555:5555 "$image" androidboot.use_memfd=1 androidboot.redroid_gpu_mode=guest androidboot.redroid_width=720 androidboot.redroid_height=1280 ro.secure=1
+          for attempt in $(seq 1 90); do
+            adb connect 127.0.0.1:5555 || true
+            if adb get-state >/dev/null 2>&1; then break; fi
+            sleep 2
+          done
+          adb wait-for-device
+          for attempt in $(seq 1 120); do
+            boot=$(adb shell getprop sys.boot_completed | tr -d '\r')
+            if test "$boot" = 1; then break; fi
+            sleep 2
+          done
+          test "$boot" = 1
+          adb shell getprop > arm-probe/device-properties.txt
+          test "$(adb shell getprop ro.product.cpu.abi | tr -d '\r')" = arm64-v8a
+          adb unroot || true
+          adb wait-for-device
+          test "$(adb shell id -u | tr -d '\r')" = 2000
+          expected=$(awk '{print $1}' .qa-apk/SHA256SUMS)
+          test "$(sha256sum .qa-apk/app-debug.apk | awk '{print $1}')" = "$expected"
+          adb install -r .qa-apk/app-debug.apk
+          adb shell am start -W -n com.vitalis.vitalis_app/.MainActivity
+          for attempt in $(seq 1 15); do
+            adb shell uiautomator dump /sdcard/qa-window.xml || true
+            adb pull /sdcard/qa-window.xml arm-probe/hierarchy.xml || true
+            if grep -q 'Open Model Library' arm-probe/hierarchy.xml; then break; fi
+            sleep 2
+          done
+          adb exec-out screencap -p > arm-probe/native-app.png
+          adb logcat -d > arm-probe/android.log
+          grep -q 'Open Model Library' arm-probe/hierarchy.xml
+          echo 'Unchanged arm64 APK rendered its setup screen on native ARM Android'
+      - name: Retain container diagnostics
+        if: always()
+        run: |
+          mkdir -p arm-probe
+          docker logs vitalis-arm-probe > arm-probe/container.log 2>&1 || true
+          docker inspect vitalis-arm-probe > arm-probe/container-inspect.json 2>&1 || true
+          docker rm -f vitalis-arm-probe || true
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         if: always()
         with:
