@@ -31,3 +31,11 @@ Status: implementation under test. No new workflow PASS is claimed until actual 
 Appium first checks that a fresh installation displays model setup. Navigation/load cases then use one saved-history fixture in the app-created database, with no model records or invented model validation. Fixture writes require GitHub Actions, an emulator serial and the Android emulator property; the stopped database is checked, seeded, checkpointed and hash-verified before app restart. This exercises the supported saved-history / unavailable-model state. No personal handset or user database is touched.
 
 Host execution explicitly includes both `test` and `test_benchmarks`; the latter contains three established core-300 cases. Failed completeness must preserve all completed case rows. Setup fallback writes a failure report only when no report already exists. The final bundle uses a non-hidden artifact directory so GitHub uploads failing as well as passing workbooks.
+## Implementation evidence — 4 November 2026
+
+- Hosted Selenium/API report: 301 executed checks passed; workbook rows and 50 distinct repository responses independently checked.
+- Initial tool failure: UiAutomator2 9 required an Appium 4 prerelease; pinned compatible 8.7.3 with Appium 3.9 instead. Installation then passed.
+- Initial Appium prerequisite failure: a fresh app legitimately opens model setup, not Home. The corrected test verifies setup, then seeds only the declared disposable saved-history fixture.
+- Initial core catalogue hold: 297/300 mapped because the root-only command omitted three benchmark cases. The corrected command includes both test directories.
+- Reporting regressions corrected: retain completed cases before completeness errors; do not overwrite existing failure reports with setup fallback; use a non-hidden final bundle directory.
+- Seven local report/fixture boundary tests pass. Full five-suite hosted acceptance remains pending; no programme PASS is claimed from these local checks.
