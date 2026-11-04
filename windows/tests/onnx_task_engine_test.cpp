@@ -3,6 +3,8 @@
 #include <fstream>
 #include <iostream>
 #include <windows.h>
+#include <chrono>
+#include <thread>
 
 using namespace vitalis::tasks;
 static void Require(bool ok) { if (!ok) throw Failure{"testAssertion"}; }
@@ -48,6 +50,43 @@ int wmain(int argc, wchar_t** argv) {
     Reject([&] { Run(bad_shape, control); }, "inputShape");
     const auto result = Run(request, control);
     Require(result.size() == 1 && result[0].values == std::vector<float>({3, 2, 0}));
+    // Required fixture: a low-memory Loop that cannot finish during this test.
+    std::filesystem::copy_file(fixtures / L"cancel_loop.onnx",
+      root / L"input_workspace" / (id + ".blob"),
+      std::filesystem::copy_options::overwrite_existing);
+    auto long_request = request;
+    long_request.shape = {1, 1};
+    long_request.values = {0};
+    std::ifstream loop_hash(fixtures / L"cancel_loop.sha256");
+    loop_hash >> long_request.hash;
+    for (int cycle = 0; cycle < 3; ++cycle) {
+      Control stopping;
+      std::string outcome;
+      std::thread worker([&] {
+        try { Run(long_request, stopping); outcome = "unexpectedCompletion"; }
+        catch (const Failure& failure) { outcome = failure.code; }
+        catch (...) { outcome = "unexpectedFailure"; }
+      });
+      const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+      bool attached = false;
+      while (std::chrono::steady_clock::now() < deadline) {
+        { std::lock_guard<std::mutex> lock(stopping.mutex); attached = stopping.run_options != nullptr; }
+        if (attached) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      }
+      std::this_thread::sleep_for(std::chrono::milliseconds(20));
+      const auto requested = std::chrono::steady_clock::now();
+      stopping.Cancel();
+      worker.join();
+      const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+          std::chrono::steady_clock::now() - requested).count();
+      Require(attached && outcome == "cancelled" && stopping.run_options == nullptr && elapsed < 2000);
+      std::cout << "PASS active cancellation cycle " << cycle << " acknowledgement_ms=" << elapsed << '\n';
+    }
+    std::filesystem::copy_file(fixtures / L"csv_sum.onnx",
+      root / L"input_workspace" / (id + ".blob"), std::filesystem::copy_options::overwrite_existing);
+    Control recovered;
+    Require(Run(request, recovered)[0].values == std::vector<float>({3, 2, 0}));
     const std::string image_id(32, 'b');
     std::filesystem::copy_file(fixtures / L"image_mean_rgb.onnx",
       root / L"input_workspace" / (id + ".blob"), std::filesystem::copy_options::overwrite_existing);

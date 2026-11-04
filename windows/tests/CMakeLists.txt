@@ -14,3 +14,4 @@ add_custom_command(TARGET ${BINARY_NAME} POST_BUILD COMMAND ${CMAKE_COMMAND} -E 
   "$<TARGET_FILE:vitalis_onnx>" "$<TARGET_FILE_DIR:${BINARY_NAME}>")
 enable_testing()
 add_test(NAME windows_algorithms COMMAND ${BINARY_NAME} "${VITALIS_TASK_FIXTURES}")
+set_tests_properties(windows_algorithms PROPERTIES TIMEOUT 30)
