@@ -12,7 +12,7 @@ def bas(report):
     cases,problems,terminal=parse_events(result.stdout,ROOT)
     # Keep the full root evidence and existing 300-case catalogue separate.
     require(result.returncode==0 and terminal and terminal.get('success') is True and not problems,str(problems))
-    require(write_core_report({'cases':cases,'source':os.environ.get('GITHUB_SHA','local'),'run_url':os.environ.get('GITHUB_SERVER_URL','https://github.com')+'/'+os.environ.get('GITHUB_REPOSITORY','Faizze-PI/Vitalis')+'/actions/runs/'+os.environ.get('GITHUB_RUN_ID','local'),'status':'PASS','runner_elapsed_ms':terminal['time']},report.out),'Incomplete core catalogue')
+    require(write_core_report({'cases':cases,'source':os.environ.get('GITHUB_SHA','local'),'run_url':os.environ.get('GITHUB_SERVER_URL','https://github.com')+'/'+os.environ.get('GITHUB_REPOSITORY','Faizze-PI/Vitalis')+'/actions/runs/'+os.environ.get('GITHUB_RUN_ID','local'),'status':'PASS','scope':'Full hosted root regression; defensive BAS subset reported separately','runner_elapsed_ms':terminal['time']},report.out),'Incomplete core catalogue')
     terms=['reject','unsafe','invalid','malformed','corrupt','failure','failed','cancel','race','rollback','wrong','mismatch','cannot','prevents','denied','quarantine','traversal','overflow','timeout','unavailable','missing','untrusted','attack','oversized','bounds','bound','disposal','disposed','interrupted','unknown','limit','stale','duplicate','uninstall','preserve','protect','non-finite','never','refuses','error']
     selected=[c for c in cases if any(t in c['name'].lower() for t in terms)]
     for i,c in enumerate(selected): report.cases.append(dict(id=f'BAS-{i+1:03}',category=c['file'],name=c['name'],status=c['status'],duration_ms=c['duration_ms'],detail=c['file']))

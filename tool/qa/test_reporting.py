@@ -5,8 +5,10 @@ class ReportIntegrity(unittest.TestCase):
     def setUp(self):
         self.temp=Path(tempfile.mkdtemp(prefix='vitalis-qa-report-'))
         self.old=module.ROOT; module.ROOT=self.temp
+        self.summary=os.environ.pop('GITHUB_STEP_SUMMARY',None)
     def tearDown(self):
         module.ROOT=self.old; shutil.rmtree(self.temp)
+        if self.summary is not None: os.environ['GITHUB_STEP_SUMMARY']=self.summary
     def make(self,count,failed=False):
         report=module.Report('fixture')
         report.cases=[dict(id=str(i),category='Integrity',name='=untrusted text',status='FAIL' if failed and i==0 else 'PASS',duration_ms=1,detail='') for i in range(count)]
