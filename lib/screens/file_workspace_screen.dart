@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../services/local_file_workspace.dart';
 import '../services/startup_access_guard.dart';
 import 'custom_task_screen.dart';
+import 'algorithm_library_screen.dart';
 import 'csv_analysis_screen.dart';
 import '../services/local_image_preview.dart';
 import '../database/database_helper.dart';
@@ -271,6 +272,22 @@ class _FileWorkspaceScreenState extends State<FileWorkspaceScreen> {
             icon: const Icon(Icons.upload_file),
             label: const Text('Import file'),
           ),
+          if (widget.onSelect == null)
+            OutlinedButton.icon(
+              onPressed: _busy
+                  ? null
+                  : () async {
+                      await Navigator.of(context).push<void>(
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              AlgorithmLibraryScreen(workspace: _workspace),
+                        ),
+                      );
+                      if (mounted) await _refresh();
+                    },
+              icon: const Icon(Icons.apps),
+              label: const Text('Algorithms'),
+            ),
           if (widget.onSelect == null)
             OutlinedButton.icon(
               onPressed: _busy || (_files?.isEmpty ?? true)

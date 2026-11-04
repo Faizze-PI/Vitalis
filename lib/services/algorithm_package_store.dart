@@ -5,6 +5,8 @@ import 'algorithm_package_zip.dart';
 import 'package:crypto/crypto.dart';
 import '../models/custom_task_spec.dart';
 import 'local_file_workspace.dart';
+import 'package:path_provider/path_provider.dart';
+import 'model_storage_preflight.dart';
 
 final class AlgorithmPackageError implements Exception {
   const AlgorithmPackageError(this.message);
@@ -26,6 +28,18 @@ final class AlgorithmPackage {
 
 /// Each ready directory is published by a single atomic rename after validation.
 class AlgorithmPackageStore {
+  static AlgorithmPackageStore? _application;
+  factory AlgorithmPackageStore.application() =>
+      _application ??= AlgorithmPackageStore(
+        root: () async => Directory(
+          '${(await getApplicationSupportDirectory()).path}/algorithm_packages',
+        ),
+        availableBytes: () async =>
+            await queryAllocatableModelStorage() ??
+            (throw const AlgorithmPackageError(
+              'Available storage is unknown.',
+            )),
+      );
   AlgorithmPackageStore({required this.root, required this.availableBytes});
   final Future<Directory> Function() root;
   final Future<int> Function() availableBytes;

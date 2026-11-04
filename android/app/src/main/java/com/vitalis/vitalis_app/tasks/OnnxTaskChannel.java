@@ -29,7 +29,7 @@ public final class OnnxTaskChannel implements MethodChannel.MethodCallHandler {
                 long budget=OnnxTaskEngine.allocationBudget(context);
                 Map<String,Object> limits=new HashMap<>();
                 limits.put("maxInputElements",Math.min(budget/Float.BYTES,Integer.MAX_VALUE));
-                limits.put("maxTextBytes",budget/4); result.success(limits); return;
+                limits.put("maxModelBytes",Math.min(budget,Integer.MAX_VALUE)); limits.put("maxTextBytes",budget/4); result.success(limits); return;
             }
             String id=call.argument("requestId");
             if(id==null || !id.matches("[a-f0-9]{32}")) throw new IllegalArgumentException();
@@ -50,6 +50,11 @@ public final class OnnxTaskChannel implements MethodChannel.MethodCallHandler {
         File file=new File(new File(context.getFilesDir(),"input_workspace"),id+".blob");
         OnnxTaskEngine.requireOwnedFile(context,file); return file;
     }
+    private File packageModel(String id) throws Exception {
+        if(id==null || !id.matches("[a-f0-9]{32}")) throw new IllegalArgumentException("packageIdentity"); // HC-082
+        File model=new File(new File(new File(context.getFilesDir(),"algorithm_packages"),id),"model.blob");
+        OnnxTaskEngine.requireOwnedModel(context,model); return model;
+    }
     @SuppressWarnings("unchecked")
     private void execute(Job job, Map<String,Object> args, MethodChannel.Result result) {
         Object value=null; String code=null;
@@ -64,7 +69,9 @@ public final class OnnxTaskChannel implements MethodChannel.MethodCallHandler {
                         (Map<String,Object>)args.get("image"),job.control,OnnxTaskEngine.allocationBudget(context));
             } else if("csv".equals(args.get("kind"))) input=(float[])args.get("values");
             else throw new IllegalArgumentException("inputKind");
-            var output=OnnxTaskEngine.run(context,owned((String)args.get("modelId")),
+            if(args.containsKey("modelPackageId") && args.containsKey("modelId")) throw new IllegalArgumentException("ambiguousModelIdentity");
+            File model=args.containsKey("modelPackageId") ? packageModel((String)args.get("modelPackageId")) : owned((String)args.get("modelId"));
+            var output=OnnxTaskEngine.run(context,model,
                     (String)args.get("modelSha256"),(String)args.get("inputName"),input,shape,
                     (List<String>)args.get("outputs"),job.control);
             List<Map<String,Object>> rows=new ArrayList<>();

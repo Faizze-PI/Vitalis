@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:vitalis_app/screens/custom_task_screen.dart';
 import 'package:vitalis_app/services/custom_task_service.dart';
+import 'package:vitalis_app/services/algorithm_package_store.dart';
+import 'package:vitalis_app/models/custom_task_spec.dart';
 import 'package:vitalis_app/services/local_file_workspace.dart';
 import 'file_workspace_screen_test.dart' show MemoryWorkspace;
 
@@ -28,6 +30,19 @@ final class FakeTaskRunner implements TaskRunner {
     } finally {
       running = false;
     }
+  }
+}
+
+final class FakePackageRunner extends FakeTaskRunner
+    implements PackageTaskRunner {
+  AlgorithmPackage? selected;
+  @override
+  Future<Map<Object?, Object?>> runPackage({
+    required AlgorithmPackage package,
+    required WorkspaceFile input,
+  }) {
+    selected = package;
+    return run(task: input, input: input);
   }
 }
 
@@ -138,6 +153,61 @@ void main() {
       await choose('one.csv', 'two.csv');
       expect(find.textContaining('old_result'), findsNothing);
       expect(find.text('Completed on this device.'), findsNothing);
+    },
+  );
+  testWidgets(
+    'package flow shows human name and input contract without a JSON selector',
+    (tester) async {
+      final spec = CustomTaskSpec.parse({
+        'schema_version': 1,
+        'runtime': 'onnx',
+        'name': 'Row sum',
+        'model': {'file': 'sum.onnx', 'sha256': 'a' * 64},
+        'input': {
+          'name': 'features',
+          'kind': 'csv',
+          'dtype': 'float32',
+          'shape': [1, 2],
+          'header': true,
+        },
+        'outputs': ['prediction'],
+      }, maxInputElements: 100);
+      final package = AlgorithmPackage(
+        'b' * 32,
+        spec,
+        'Adds two columns',
+        'c' * 64,
+      );
+      final runner = FakePackageRunner();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CustomTaskScreen(
+            workspace: MemoryWorkspace(),
+            files: const [
+              WorkspaceFile(
+                id: 'input',
+                name: 'data.csv',
+                bytes: 1,
+                sha256: 'd',
+              ),
+            ],
+            package: package,
+            runner: runner,
+          ),
+        ),
+      );
+      expect(find.text('Row sum'), findsWidgets);
+      expect(find.text('Task description'), findsNothing);
+      expect(find.textContaining('2 columns'), findsOneWidget);
+      await tester.tap(find.text('Input file'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('data.csv').last);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Run algorithm'));
+      await tester.pump();
+      expect(runner.selected, package);
+      runner.terminal.complete({'backend': 'ONNX CPU', 'outputs': []});
+      await tester.pumpAndSettle();
     },
   );
 }

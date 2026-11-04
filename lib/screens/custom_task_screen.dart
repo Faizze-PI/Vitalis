@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
+import '../services/algorithm_package_store.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -15,10 +18,14 @@ class CustomTaskScreen extends StatefulWidget {
     required this.workspace,
     required this.files,
     this.runner,
+    this.package,
+    this.packages,
   });
   final InputWorkspaceStore workspace;
   final List<WorkspaceFile> files;
   final TaskRunner? runner;
+  final AlgorithmPackage? package;
+  final AlgorithmPackageStore? packages;
   @override
   State<CustomTaskScreen> createState() => _CustomTaskScreenState();
 }
@@ -26,13 +33,15 @@ class CustomTaskScreen extends StatefulWidget {
 class _CustomTaskScreenState extends State<CustomTaskScreen>
     with WidgetsBindingObserver {
   WorkspaceFile? _task, _input;
-  bool _busy = false, _stopping = false;
+  bool _busy = false, _stopping = false, _importing = false;
+  late final _files = List<WorkspaceFile>.of(widget.files);
   String? _status;
   Map<Object?, Object?>? _result;
   late final TaskRunner _runner =
       widget.runner ??
       CustomTaskService(
         workspace: widget.workspace,
+        packages: widget.packages ?? AlgorithmPackageStore.application(),
         prepare: () async {
           final guard = context.read<StartupAccessGuard?>();
           if (guard == null) throw StateError('Startup unavailable');
@@ -68,7 +77,11 @@ class _CustomTaskScreenState extends State<CustomTaskScreen>
   }
 
   Future<void> _run() async {
-    if (_busy || _task == null || _input == null) return;
+    if (_busy ||
+        _importing ||
+        (_task == null && widget.package == null) ||
+        _input == null)
+      return;
     setState(() {
       _busy = true;
       _stopping = false;
@@ -76,7 +89,12 @@ class _CustomTaskScreenState extends State<CustomTaskScreen>
       _result = null;
     });
     try {
-      final output = await _runner.run(task: _task!, input: _input!);
+      final output = widget.package == null
+          ? await _runner.run(task: _task!, input: _input!)
+          : await (_runner as PackageTaskRunner).runPackage(
+              package: widget.package!,
+              input: _input!,
+            );
       if (mounted)
         setState(() {
           if (!_stopping) _result = output;
@@ -119,6 +137,51 @@ class _CustomTaskScreenState extends State<CustomTaskScreen>
     }
   }
 
+  Future<void> _chooseInput() async {
+    if (_busy || _importing) return;
+    setState(() => _importing = true);
+    try {
+      final guard = context.read<StartupAccessGuard?>();
+      if (guard == null) throw StateError('Startup unavailable');
+      guard.require(StartupAccessOperation.recoverModels);
+      final selected = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: widget.package?.spec.kind == 'csv'
+            ? ['csv']
+            : ['png', 'jpg', 'jpeg'],
+        withReadStream: true,
+      );
+      if (selected == null || !mounted) return;
+      final picked = selected.files.single;
+      final source =
+          picked.readStream ??
+          (picked.path == null ? null : File(picked.path!).openRead());
+      if (source == null)
+        throw const FormatException('The selected input could not be read.');
+      guard.require(StartupAccessOperation.recoverModels);
+      final file = await widget.workspace.import(
+        name: picked.name,
+        expectedBytes: picked.size,
+        source: source,
+      );
+      if (mounted)
+        setState(() {
+          _files.add(file);
+          _input = file;
+          _result = null;
+          _status = null;
+        });
+    } catch (_) {
+      if (mounted)
+        setState(
+          () =>
+              _status = 'Input could not be imported. Check storage and retry.',
+        );
+    } finally {
+      if (mounted) setState(() => _importing = false);
+    }
+  }
+
   Widget _select(
     String label,
     WorkspaceFile? value,
@@ -135,7 +198,7 @@ class _CustomTaskScreenState extends State<CustomTaskScreen>
           child: Text(file.name, overflow: TextOverflow.ellipsis),
         ),
     ],
-    onChanged: _busy
+    onChanged: _busy || _importing
         ? null
         : (item) => setState(() {
             if (item?.id != value?.id) {
@@ -147,32 +210,73 @@ class _CustomTaskScreenState extends State<CustomTaskScreen>
   );
   @override
   Widget build(BuildContext context) => PopScope(
-    canPop: !_busy,
+    canPop: !_busy && !_importing,
     child: Scaffold(
-      appBar: AppBar(title: const Text('Run custom algorithm')),
+      appBar: AppBar(
+        title: Text(widget.package?.spec.name ?? 'Run custom algorithm'),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text(
-            'Import the task JSON, its exact ONNX model, and a CSV or image in Files first. Runs locally on CPU. Use trusted compatible exports.',
-          ),
+          if (widget.package case final package?) ...[
+            Text(package.description),
+            Text(
+              package.spec.kind == 'csv'
+                  ? 'CSV: ${package.spec.shape[0]} data rows, ${package.spec.shape[1]} columns. Header: ${package.spec.csvHeader ? 'yes' : 'no'}.'
+                  : 'Image: PNG/JPEG. Preprocessing is configured by this algorithm.',
+            ),
+            OutlinedButton.icon(
+              onPressed: _busy || _importing ? null : _chooseInput,
+              icon: const Icon(Icons.attach_file),
+              label: const Text('Choose input file'),
+            ),
+          ] else ...[
+            const Text(
+              'Import the task JSON, its exact ONNX model, and a CSV or image in Files first. Runs locally on CPU. Use trusted compatible exports.',
+            ),
+            const SizedBox(height: 16),
+            _select(
+              'Task description',
+              _task,
+              (v) => _task = v,
+              _files.where((f) => f.name.toLowerCase().endsWith('.json')),
+            ),
+          ],
           const SizedBox(height: 16),
           _select(
-            'Task description',
-            _task,
-            (v) => _task = v,
-            widget.files.where((f) => f.name.toLowerCase().endsWith('.json')),
+            'Input file',
+            _input,
+            (v) => _input = v,
+            _files.where(
+              (f) =>
+                  widget.package == null ||
+                  (widget.package!.spec.kind == 'csv'
+                      ? f.name.toLowerCase().endsWith('.csv')
+                      : [
+                          'png',
+                          'jpg',
+                          'jpeg',
+                        ].contains(f.name.split('.').last.toLowerCase())),
+            ),
           ),
-          const SizedBox(height: 16),
-          _select('Input file', _input, (v) => _input = v, widget.files),
           const SizedBox(height: 16),
           const Text(
             'Image tasks: opaque PNG/JPEG, RGB, stored pixel orientation (no automatic EXIF rotation). Resize and normalization come from the task JSON. Outputs are raw tensors, not automatically probabilities or diagnoses.',
           ),
           FilledButton(
-            onPressed: _busy || _task == null || _input == null ? null : _run,
+            onPressed:
+                _busy ||
+                    _importing ||
+                    (_task == null && widget.package == null) ||
+                    _input == null
+                ? null
+                : _run,
             child: const Text('Run algorithm'),
           ),
+          if (_importing)
+            const LinearProgressIndicator(
+              semanticsLabel: 'Importing algorithm input',
+            ),
           if (_busy) ...[
             const LinearProgressIndicator(
               semanticsLabel: 'Running local algorithm',

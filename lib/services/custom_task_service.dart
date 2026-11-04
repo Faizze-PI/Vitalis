@@ -7,6 +7,7 @@ import 'package:llm_llamacpp/llm_llamacpp.dart';
 import '../models/custom_task_spec.dart';
 import 'hardware_sentinel_service.dart';
 import 'local_file_workspace.dart';
+import 'algorithm_package_store.dart';
 
 typedef TaskInvoke =
     Future<Map<Object?, Object?>?> Function(
@@ -28,9 +29,17 @@ abstract interface class TaskRunner {
 }
 
 /// One local task, retaining file/runtime leases through native termination.
-final class CustomTaskService implements TaskRunner {
+abstract interface class PackageTaskRunner implements TaskRunner {
+  Future<Map<Object?, Object?>> runPackage({
+    required AlgorithmPackage package,
+    required WorkspaceFile input,
+  });
+}
+
+final class CustomTaskService implements PackageTaskRunner {
   CustomTaskService({
     required this.workspace,
+    this.packages,
     TaskInvoke? invoke,
     TaskExclusive? exclusive,
     this.prepare,
@@ -50,7 +59,16 @@ final class CustomTaskService implements TaskRunner {
     String method,
     Map<String, Object?> args,
   ) => _channel.invokeMapMethod<Object?, Object?>(method, args);
+  static Future<({int modelBytes, int inputElements})> deviceLimits() async {
+    final values = await _platformInvoke('limits', {});
+    final model = values?['maxModelBytes'], input = values?['maxInputElements'];
+    if (model is! int || input is! int || model <= 0 || input <= 0)
+      throw const FormatException('Device algorithm limits are unavailable.');
+    return (modelBytes: model, inputElements: input);
+  }
+
   final InputWorkspaceStore workspace;
+  final AlgorithmPackageStore? packages;
   final TaskInvoke _invoke;
   final TaskExclusive _exclusive;
   final Future<void> Function()? prepare;
@@ -78,6 +96,17 @@ final class CustomTaskService implements TaskRunner {
 
   Future<Map<Object?, Object?>> run({
     required WorkspaceFile task,
+    required WorkspaceFile input,
+  }) => _run(task: task, input: input);
+
+  Future<Map<Object?, Object?>> runPackage({
+    required AlgorithmPackage package,
+    required WorkspaceFile input,
+  }) => _run(package: package, input: input);
+
+  Future<Map<Object?, Object?>> _run({
+    WorkspaceFile? task,
+    AlgorithmPackage? package,
     required WorkspaceFile input,
   }) async {
     if (running) throw PlatformException(code: 'runtimeBusy');
@@ -113,14 +142,65 @@ final class CustomTaskService implements TaskRunner {
             textBytes is! int ||
             textBytes <= 0)
           throw const FormatException('Device input budget unavailable.');
-        final spec = await workspace.withFile(task.id, (file) async {
-          final json = jsonDecode(
-            await _read(file, InputWorkspacePolicy.metadataBytes),
+        late final CustomTaskSpec spec;
+        if (package != null) {
+          if (packages == null)
+            throw const FormatException(
+              'Algorithm package storage is unavailable.',
+            );
+          final installed = (await packages!.list()).where(
+            (p) =>
+                p.id == package.id && p.packageSha256 == package.packageSha256,
           );
-          if (json is! Map<String, dynamic>)
-            throw const FormatException('Select a task JSON description.');
-          return CustomTaskSpec.parse(json, maxInputElements: elements);
+          if (installed.length != 1)
+            throw const FormatException(
+              'Algorithm package is unavailable. Reopen the library.',
+            );
+          spec = installed.single.spec;
+          if (spec.elementCount > elements)
+            throw const FormatException(
+              'Algorithm input exceeds the current device task budget.',
+            );
+        } else {
+          spec = await workspace.withFile(task!.id, (file) async {
+            final json = jsonDecode(
+              await _read(file, InputWorkspacePolicy.metadataBytes),
+            );
+            if (json is! Map<String, dynamic>)
+              throw const FormatException('Select a task JSON description.');
+            return CustomTaskSpec.parse(json, maxInputElements: elements);
+          });
+        }
+        Future<Map<Object?, Object?>> executeInput(
+          Map<String, Object?> modelFields,
+        ) => workspace.withFile(input.id, (file) async {
+          final args = <String, Object?>{
+            'requestId': id,
+            ...modelFields,
+            'modelSha256': spec.modelSha256,
+            'inputId': input.id,
+            'inputName': spec.inputName,
+            'shape': spec.shape,
+            'outputs': spec.outputNames,
+            'kind': spec.kind,
+            'image': spec.image,
+          };
+          if (spec.kind == 'csv')
+            args['values'] = spec.csvValues(await _read(file, textBytes));
+          _check();
+          _submitted = true;
+          final result = await _invoke('run', args);
+          _check();
+          if (result == null || result['requestId'] != id)
+            throw PlatformException(code: 'invalidTaskResult');
+          return result;
         });
+        if (package != null) {
+          return packages!.withModel(
+            package.id,
+            (_) => executeInput({'modelPackageId': package.id}),
+          );
+        }
         final models = (await workspace.list()).where(
           (file) => file.sha256 == spec.modelSha256,
         );
@@ -131,28 +211,7 @@ final class CustomTaskService implements TaskRunner {
         final model = models.first;
         return workspace.withFile(
           model.id,
-          (_) => workspace.withFile(input.id, (file) async {
-            final args = <String, Object?>{
-              'requestId': id,
-              'modelId': model.id,
-              'modelSha256': spec.modelSha256,
-              'inputId': input.id,
-              'inputName': spec.inputName,
-              'shape': spec.shape,
-              'outputs': spec.outputNames,
-              'kind': spec.kind,
-              'image': spec.image,
-            };
-            if (spec.kind == 'csv')
-              args['values'] = spec.csvValues(await _read(file, textBytes));
-            _check();
-            _submitted = true;
-            final result = await _invoke('run', args);
-            _check();
-            if (result == null || result['requestId'] != id)
-              throw PlatformException(code: 'invalidTaskResult');
-            return result;
-          }),
+          (_) => executeInput({'modelId': model.id}),
         );
       });
     } finally {

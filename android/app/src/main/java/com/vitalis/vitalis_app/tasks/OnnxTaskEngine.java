@@ -49,13 +49,30 @@ public final class OnnxTaskEngine {
             String inputName, float[] values, long[] shape, List<String> outputNames,
             Control control) throws Exception {
         control.check();
-        requireOwnedFile(context, model);
+        requireOwnedModel(context, model);
         if (expectedHash == null || !expectedHash.matches("[a-f0-9]{64}"))
             throw new IllegalArgumentException("hashRequired");
         long budget = allocationBudget(context);
         if (model.length() <= 0 || model.length() > budget ||
                 model.length() > Integer.MAX_VALUE) throw new IllegalArgumentException("memoryBudget");
         return runOwned(context, model, expectedHash, inputName, values, shape, outputNames, control, budget);
+    }
+
+    static void requireOwnedModel(Context context, File model) throws Exception {
+        File inputRoot = new File(context.getFilesDir(), "input_workspace");
+        if (model.getCanonicalFile().getParentFile().equals(inputRoot.getCanonicalFile())) {
+            requireOwnedFile(context, model); return;
+        }
+        File root = new File(context.getFilesDir(), "algorithm_packages");
+        File directory = model.getParentFile();
+        if (directory == null || !directory.getName().matches("[a-f0-9]{32}"))
+            throw new IllegalArgumentException("modelNotOwned"); // HC-082
+        File ready = new File(directory, "ready.json");
+        if (Files.isSymbolicLink(root.toPath()) || Files.isSymbolicLink(directory.toPath()) ||
+                !directory.getCanonicalFile().getParentFile().equals(root.getCanonicalFile()) ||
+                !model.getName().equals("model.blob") || Files.isSymbolicLink(model.toPath()) ||
+                !model.isFile() || Files.isSymbolicLink(ready.toPath()) || !ready.isFile())
+            throw new IllegalArgumentException("packageModelNotOwned");
     }
 
     static void requireOwnedFile(Context context, File model) throws Exception {

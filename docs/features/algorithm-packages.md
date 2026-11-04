@@ -20,10 +20,13 @@ task schemas, oversized models and mismatched hashes are rejected. Packages do
 not become executable merely because their archive/hash validates: backend tensor
 validation and actual inference remain the runner's responsibility.
 
-This checkpoint does not yet connect the picker, package list or native runner.
-No new package feature is in the installed APK. Next: integrate package ownership
-with the shared task lifecycle, add the simple library/Run screen, export the
-reference ZIPs, then build and physically validate import/restart/run/removal.
+The working implementation now connects a ZIP picker, named algorithm library,
+input selection and native runner. Package execution uses the shared task
+cancellation lifecycle and retains a package read lease until native termination.
+The library removes only its temporary archive copy after import; originals stay
+untouched. Import does not automatically execute or establish model accuracy.
+No new package feature is in the installed APK yet. Build and physical validation
+of import/restart/run/removal remain required.
 Interrupted `.part` directories remain invisible and preserve evidence; automatic
 recovery/cleanup policy must be completed before final qualification.
 
