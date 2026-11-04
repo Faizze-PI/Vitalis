@@ -100,7 +100,7 @@ jobs:
   appium:
     name: Appium APK compatibility (300+)
     needs: [build]
-    if: ${{ always() && needs.build.result == 'success' }}
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     env:
@@ -154,7 +154,7 @@ jobs:
   bas:
     name: BAS defensive regressions (300+)
     needs: [appium, selenium]
-    if: always()
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
@@ -186,7 +186,7 @@ jobs:
   dast:
     name: Native APK dynamic security (300+)
     needs: [build, bas]
-    if: ${{ always() && needs.build.result == 'success' }}
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     env:
@@ -240,7 +240,7 @@ jobs:
   load:
     name: Sequential app load (300+)
     needs: [build, dast]
-    if: ${{ always() && needs.build.result == 'success' }}
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 90
     env:
