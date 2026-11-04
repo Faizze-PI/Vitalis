@@ -111,6 +111,12 @@ class ReportIntegrity(unittest.TestCase):
         rows=json.loads((root/'FINAL_TEST_SUMMARY.json').read_text())['suites']
         self.assertEqual(next(r for r in rows if r[0]=='appium')[-1],'HOLD')
         self.assertEqual(next(r for r in rows if r[0]=='load')[-1],'HOLD')
+    def test_expensive_jobs_stop_when_workflow_is_cancelled(self):
+        import yaml
+        workflow=yaml.safe_load((Path(__file__).resolve().parents[2]/'.github/workflows/behaviour-qa.yml').read_text())
+        for name in ['appium','bas','dast','load']:
+            self.assertIn('!cancelled()',workflow['jobs'][name]['if'])
+        self.assertEqual(workflow['jobs']['bundle']['if'],'always()')
     def test_minimum_has_five_independent_suite_gates(self):
         import yaml
         workflow=yaml.safe_load((Path(__file__).resolve().parents[2]/'.github/workflows/behaviour-qa.yml').read_text())
