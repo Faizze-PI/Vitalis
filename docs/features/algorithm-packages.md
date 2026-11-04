@@ -25,8 +25,12 @@ input selection and native runner. Package execution uses the shared task
 cancellation lifecycle and retains a package read lease until native termination.
 The library removes only its temporary archive copy after import; originals stay
 untouched. Import does not automatically execute or establish model accuracy.
-No new package feature is in the installed APK yet. Build and physical validation
-of import/restart/run/removal remain required.
+The package library was installed and physically tested on OPPO 472fa620 from
+checkpoint 1ef9c2b. Import and execution of a Colab-exported image classifier
+passed for two public samples, with output parity against Colab within 0.0001.
+Returning to the library retained the package; process-restart and removal
+qualification remain pending. This does not establish medical accuracy or
+complete Android qualification.
 Interrupted `.part` directories remain invisible and preserve evidence; automatic
 recovery/cleanup policy must be completed before final qualification.
 
@@ -35,3 +39,12 @@ seed 20261104; analysis clean; hardcode verifier passed 82 dispositions. Initial
 test archives accidentally declared a zero-length task entry and were corrected
 to use the archive string constructor. The removal/read race and non-file model
 entry checks failed before their corrections. Failed runs remain in local evidence.
+
+
+Accepted demonstration scope (user confirmation, 2026-11-04): a compatible
+algorithm must run with its declared input and return correct raw outputs.
+Automatic class-name presentation is not required for this working version.
+The public classifier produced matching top classes and maximum absolute output
+differences of 1.63e-9 and 2.39e-7 against Colab. These two cases establish
+execution/parity only, not medical accuracy. Scoped pre/post-install inventory
+matched in all 17 recorded entries; complete Android qualification remains open.
