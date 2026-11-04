@@ -47,6 +47,7 @@ class ReportIntegrity(unittest.TestCase):
     def test_appium_http_metrics_count_actual_logs(self):
         from mobile import appium_http_metrics
         text='[HTTP] --> GET /status\n[HTTP] <-- GET /status 200 10 ms - 2\n[HTTP] --> POST /session/x/element\n[HTTP] <-- POST /session/x/element 404 25 ms - 40\n[HTTP] --> GET /pending\n'
+        text=text.replace('[HTTP]','\x1b[38;5;86m[HTTP]\x1b[0m')
         metrics=appium_http_metrics(text)
         self.assertEqual(metrics['driver_http_requests'],3)
         self.assertEqual(metrics['driver_http_responses'],2)
