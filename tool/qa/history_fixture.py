@@ -3,7 +3,9 @@ import hashlib,json,os,re,sqlite3,subprocess,tempfile
 from pathlib import Path
 from report import ROOT,require
 PACKAGE='com.vitalis.vitalis_app'
-def validate_environment(serial,ci,qemu):
+def validate_environment(serial,ci,qemu,hardware="",container_run="",run_id=""):
+    if (ci=="true" and serial=="127.0.0.1:5555" and hardware=="redroid"
+            and run_id and container_run==run_id): return
     require(ci=='true' and re.fullmatch(r'emulator-\d+',serial) and qemu.strip()=='1',
             'Database fixture is restricted to disposable hosted emulators')
 
@@ -12,7 +14,15 @@ def seed(report):
         return subprocess.run(['adb',*args],check=True,capture_output=True,timeout=30,**kwargs)
     serial=os.environ.get('ANDROID_SERIAL','')
     qemu=command('shell','getprop','ro.kernel.qemu').stdout.decode().strip()
-    validate_environment(serial,os.environ.get('GITHUB_ACTIONS',''),qemu)
+    hardware=command('shell','getprop','ro.hardware').stdout.decode().strip()
+    container_run=''
+    container=os.environ.get('QA_ANDROID_CONTAINER','')
+    if container and re.fullmatch(r'[a-zA-Z0-9_-]+',container):
+        container_run=subprocess.run(['docker','inspect','--format',
+            '{{index .Config.Labels "com.vitalis.ci"}}',container],check=True,
+            capture_output=True,text=True,timeout=10).stdout.strip()
+    validate_environment(serial,os.environ.get('GITHUB_ACTIONS',''),qemu,hardware,
+                         container_run,os.environ.get('GITHUB_RUN_ID',''))
     constants=(ROOT/'lib/constants/app_constants.dart').read_text()
     match=re.search(r"databaseName\s*=\s*['\"]([A-Za-z0-9_.-]+)['\"]",constants)
     require(match is not None,'Cannot derive actual database identity')
