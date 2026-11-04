@@ -40,6 +40,10 @@ class ReportIntegrity(unittest.TestCase):
         for args in [('472fa620','true','0'),('emulator-5554','','1'),('emulator-5554','true','0')]:
             with self.assertRaises(AssertionError): validate_environment(*args)
         validate_environment('emulator-5554','true','1')
+        validate_environment('127.0.0.1:5555','true','','redroid','123','123')
+        for args in [('127.0.0.1:5555','true','','redroid','other','123'),
+                     ('472fa620','true','','redroid','123','123')]:
+            with self.assertRaises(AssertionError): validate_environment(*args)
     def test_bundle_remains_downloadable_when_suites_fail(self):
         import subprocess,sys
         root=self.temp/'qa-bundle'; root.mkdir()
