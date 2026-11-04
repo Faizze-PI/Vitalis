@@ -84,4 +84,60 @@ void main() {
       expect(find.textContaining('3.0'), findsOneWidget);
     },
   );
+  testWidgets(
+    'changing task or input clears output from the previous selection',
+    (tester) async {
+      final runner = FakeTaskRunner();
+      const files = [
+        WorkspaceFile(id: 'a', name: 'first.json', bytes: 1, sha256: 'a'),
+        WorkspaceFile(id: 'b', name: 'second.json', bytes: 1, sha256: 'b'),
+        WorkspaceFile(id: 'c', name: 'one.csv', bytes: 1, sha256: 'c'),
+        WorkspaceFile(id: 'd', name: 'two.csv', bytes: 1, sha256: 'd'),
+      ];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: CustomTaskScreen(
+            workspace: MemoryWorkspace(),
+            files: files,
+            runner: runner,
+          ),
+        ),
+      );
+      Future<void> choose(String current, String next) async {
+        await tester.tap(find.text(current).last);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(next).last);
+        await tester.pumpAndSettle();
+      }
+
+      Future<void> complete() async {
+        runner.terminal = Completer<Map<Object?, Object?>>();
+        await tester.tap(find.text('Run algorithm'));
+        await tester.pump();
+        runner.terminal.complete({
+          'backend': 'ONNX CPU',
+          'outputs': [
+            {
+              'name': 'old_result',
+              'shape': [1],
+              'values': [42.0],
+            },
+          ],
+        });
+        await tester.pumpAndSettle();
+        expect(find.textContaining('old_result'), findsOneWidget);
+      }
+
+      await choose('Task description', 'first.json');
+      await choose('Input file', 'one.csv');
+      await complete();
+      await choose('first.json', 'second.json');
+      expect(find.textContaining('old_result'), findsNothing);
+      expect(find.text('Completed on this device.'), findsNothing);
+      await complete();
+      await choose('one.csv', 'two.csv');
+      expect(find.textContaining('old_result'), findsNothing);
+      expect(find.text('Completed on this device.'), findsNothing);
+    },
+  );
 }

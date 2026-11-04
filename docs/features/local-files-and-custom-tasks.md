@@ -30,11 +30,12 @@ No in-app training is included.
 - Atomic per-file metadata makes imports persist. This is a separate store and
   does not rewrite the existing version-8 chat database.
 - Text/CSV/JSON previews read only a bounded prefix; the complete file remains
-  stored. Other formats currently show metadata, not a fabricated analysis.
+  stored. PNG/JPEG have bounded image previews. Unsupported formats show metadata.
 - Removal requires confirmation and addresses only the controlled imported copy.
   Leased inputs cannot be removed while a task is using them.
 
-This is not yet attachment injection into chat. The workspace now links to
+UTF-8 text/CSV chat attachments are implemented and phone-tested separately;
+image preview does not enable vision chat. The workspace links to
 **Run custom algorithm**. Select an imported task JSON and input; the exact model
 is found by its declared SHA-256. No background upload or automatic execution
 occurs on import.

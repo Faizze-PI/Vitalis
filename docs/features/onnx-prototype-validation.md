@@ -51,3 +51,16 @@ verifies that identity and generates task/input/reference files outside Git.
 The probe uses a synthetic RGB image, nearest stretching and the publisher's
 normalization. It does not reproduce the publisher's center-crop accuracy
 evaluation, assign class labels, or establish medical/real-world accuracy.
+
+## Current-build regression, 4 November 2026
+
+On installed build `f018cec`, all four native phone tests passed again. The bounded
+Loop cancellation measured 94,858 microseconds from request to worker termination,
+including cleanup, with JNI run observed independently. This is one instrumentation
+measurement, not UI Stop timing. CSV UI output remained `[3,2,0]`; image output
+remained `[0.5,0.25,0.25]` after the shared CSV-parser and file-preview changes.
+
+A medium result-attribution defect was reproduced: choosing another task/input
+left the previous result and completion status visible. Both selectors now clear
+those fields on identity change. Seventeen focused regressions pass; rebuilding
+and physical retesting are pending. No inference-result values were altered.

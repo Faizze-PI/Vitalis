@@ -135,7 +135,15 @@ class _CustomTaskScreenState extends State<CustomTaskScreen>
           child: Text(file.name, overflow: TextOverflow.ellipsis),
         ),
     ],
-    onChanged: _busy ? null : (item) => setState(() => changed(item)),
+    onChanged: _busy
+        ? null
+        : (item) => setState(() {
+            if (item?.id != value?.id) {
+              _result = null;
+              _status = null;
+            }
+            changed(item);
+          }),
   );
   @override
   Widget build(BuildContext context) => PopScope(
