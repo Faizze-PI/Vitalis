@@ -1,0 +1,318 @@
+name: Behaviour, API, security and load qualification
+on:
+  workflow_dispatch:
+    inputs:
+      apk_run:
+        description: Optional existing run; reuse only if APK hash and app source match
+        required: false
+        default: ''
+        type: string
+  push:
+    branches: [ci/behavior-security-load-20261104]
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: behaviour-qa-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    name: Prepare verified arm64 APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        if: ${{ inputs.apk_run != '' }}
+        with:
+          name: QA-arm64-APK
+          path: build/app/outputs/flutter-apk
+          run-id: ${{ inputs.apk_run }}
+          github-token: ${{ github.token }}
+      - name: Verify reference APK and unchanged application source
+        id: reference
+        if: ${{ inputs.apk_run != '' }}
+        run: |
+          set -euo pipefail
+          directory=build/app/outputs/flutter-apk
+          source=$(cat "$directory/source.txt" | tr -d '\r\n')
+          [[ "$source" =~ ^[a-f0-9]{40}$ ]] || exit 2
+          expected=$(awk '{print $1}' "$directory/SHA256SUMS")
+          [[ "$expected" =~ ^[a-f0-9]{64}$ ]] || exit 2
+          actual=$(sha256sum "$directory/app-debug.apk" | awk '{print $1}')
+          test "$actual" = "$expected"
+          changes=$(git diff --name-only "$source" HEAD -- . ':!tool/qa' ':!.github/workflows/behaviour-qa.yml' ':!.github/workflows/arm-android-probe.yml' ':!docs/testing/FIVE_SUITE_QA.md')
+          test -z "$changes" || { echo 'Referenced APK source differs from application source'; exit 2; }
+          echo 'reuse=true' >> "$GITHUB_OUTPUT"
+      - id: policy
+        if: ${{ steps.reference.outputs.reuse != 'true' }}
+        run: node -e 'const fs=require("fs"),p=JSON.parse(fs.readFileSync("tool/toolchain_policy.json")); for(const k of ["flutter","jdk"])fs.appendFileSync(process.env.GITHUB_OUTPUT,k+"="+p[k]+"\n");'
+      - uses: ./.github/actions/setup
+        if: ${{ steps.reference.outputs.reuse != 'true' }}
+        with:
+          flutter: ${{ steps.policy.outputs.flutter }}
+          jdk: ${{ steps.policy.outputs.jdk }}
+      - run: ./tool/run_gate.sh pub get --enforce-lockfile
+        if: ${{ steps.reference.outputs.reuse != 'true' }}
+      - run: ./tool/run_gate.sh build apk --debug --target-platform android-arm64 --no-pub
+        if: ${{ steps.reference.outputs.reuse != 'true' }}
+      - name: APK source and identity
+        if: ${{ steps.reference.outputs.reuse != 'true' }}
+        run: |
+          git rev-parse HEAD > build/app/outputs/flutter-apk/source.txt
+          sha256sum build/app/outputs/flutter-apk/app-debug.apk > build/app/outputs/flutter-apk/SHA256SUMS
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: QA-arm64-APK
+          path: build/app/outputs/flutter-apk/
+          retention-days: 14
+          if-no-files-found: error
+  selenium:
+    name: Selenium and public API contracts (300+)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      QA_SUITE: selenium
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r tool/qa/requirements.txt
+      - run: python tool/qa/test_reporting.py
+      - run: python tool/qa/run.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: VITALIS-selenium-Excel-and-evidence
+          path: .qa-results/selenium/
+          retention-days: 30
+          if-no-files-found: error
+  appium:
+    name: Appium APK compatibility (300+)
+    needs: [build]
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    env:
+      QA_SUITE: appium
+      ANDROID_SERIAL: 127.0.0.1:5555
+      QA_ANDROID_CONTAINER: vitalis-qa-android
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r tool/qa/requirements.txt
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: QA-arm64-APK
+          path: .qa-apk
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+      - name: Install pinned Appium and driver
+        run: |
+          mkdir -p ".qa-results/$QA_SUITE"
+          npm install --global appium@3.9.0 2>&1 | tee ".qa-results/$QA_SUITE/tool-install.log"
+          appium driver install uiautomator2@8.7.3 2>&1 | tee -a ".qa-results/$QA_SUITE/tool-install.log"
+      - name: Boot native ARM Android and execute suite
+        run: bash tool/qa/native_android.sh
+      - name: Retain native Android diagnostics
+        if: always()
+        run: |
+          mkdir -p ".qa-results/$QA_SUITE"
+          docker logs "$QA_ANDROID_CONTAINER" > ".qa-results/$QA_SUITE/container.log" 2>&1 || true
+          docker inspect "$QA_ANDROID_CONTAINER" > ".qa-results/$QA_SUITE/container-inspect.json" 2>&1 || true
+          docker rm -f "$QA_ANDROID_CONTAINER" || true
+      - name: Record incomplete setup
+        if: failure()
+        env:
+          QA_SETUP_FAILURE: '1'
+        run: |
+          if [ ! -f ".qa-results/$QA_SUITE/results.json" ]; then
+            python tool/qa/run.py
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: VITALIS-appium-Excel-and-evidence
+          path: .qa-results/appium/
+          retention-days: 30
+          if-no-files-found: error
+  bas:
+    name: BAS defensive regressions (300+)
+    needs: [appium, selenium]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      QA_SUITE: bas
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r tool/qa/requirements.txt
+      - id: policy
+        run: node -e 'const fs=require("fs"),p=JSON.parse(fs.readFileSync("tool/toolchain_policy.json")); for(const k of ["flutter","jdk"])fs.appendFileSync(process.env.GITHUB_OUTPUT,k+"="+p[k]+"\n");'
+      - uses: ./.github/actions/setup
+        with:
+          flutter: ${{ steps.policy.outputs.flutter }}
+          jdk: ${{ steps.policy.outputs.jdk }}
+      - run: ./tool/run_gate.sh pub get --enforce-lockfile
+      - run: python tool/qa/test_reporting.py
+      - run: python tool/qa/run.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: VITALIS-bas-Excel-and-evidence
+          path: .qa-results/bas/
+          retention-days: 30
+          if-no-files-found: error
+  dast:
+    name: Native APK dynamic security (300+)
+    needs: [build, bas]
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    env:
+      QA_SUITE: dast
+      ANDROID_SERIAL: 127.0.0.1:5555
+      QA_ANDROID_CONTAINER: vitalis-qa-android
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r tool/qa/requirements.txt
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: QA-arm64-APK
+          path: .qa-apk
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+      - name: Install pinned Appium and driver
+        run: |
+          mkdir -p ".qa-results/$QA_SUITE"
+          npm install --global appium@3.9.0 2>&1 | tee ".qa-results/$QA_SUITE/tool-install.log"
+          appium driver install uiautomator2@8.7.3 2>&1 | tee -a ".qa-results/$QA_SUITE/tool-install.log"
+      - name: Boot native ARM Android and execute suite
+        run: bash tool/qa/native_android.sh
+      - name: Retain native Android diagnostics
+        if: always()
+        run: |
+          mkdir -p ".qa-results/$QA_SUITE"
+          docker logs "$QA_ANDROID_CONTAINER" > ".qa-results/$QA_SUITE/container.log" 2>&1 || true
+          docker inspect "$QA_ANDROID_CONTAINER" > ".qa-results/$QA_SUITE/container-inspect.json" 2>&1 || true
+          docker rm -f "$QA_ANDROID_CONTAINER" || true
+      - name: Record incomplete setup
+        if: failure()
+        env:
+          QA_SETUP_FAILURE: '1'
+        run: |
+          if [ ! -f ".qa-results/$QA_SUITE/results.json" ]; then
+            python tool/qa/run.py
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: VITALIS-dast-Excel-and-evidence
+          path: .qa-results/dast/
+          retention-days: 30
+          if-no-files-found: error
+  load:
+    name: Sequential app load (300+)
+    needs: [build, dast]
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    env:
+      QA_SUITE: load
+      ANDROID_SERIAL: 127.0.0.1:5555
+      QA_ANDROID_CONTAINER: vitalis-qa-android
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r tool/qa/requirements.txt
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: QA-arm64-APK
+          path: .qa-apk
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version: '24'
+      - name: Install pinned Appium and driver
+        run: |
+          mkdir -p ".qa-results/$QA_SUITE"
+          npm install --global appium@3.9.0 2>&1 | tee ".qa-results/$QA_SUITE/tool-install.log"
+          appium driver install uiautomator2@8.7.3 2>&1 | tee -a ".qa-results/$QA_SUITE/tool-install.log"
+      - name: Boot native ARM Android and execute suite
+        run: bash tool/qa/native_android.sh
+      - name: Retain native Android diagnostics
+        if: always()
+        run: |
+          mkdir -p ".qa-results/$QA_SUITE"
+          docker logs "$QA_ANDROID_CONTAINER" > ".qa-results/$QA_SUITE/container.log" 2>&1 || true
+          docker inspect "$QA_ANDROID_CONTAINER" > ".qa-results/$QA_SUITE/container-inspect.json" 2>&1 || true
+          docker rm -f "$QA_ANDROID_CONTAINER" || true
+      - name: Record incomplete setup
+        if: failure()
+        env:
+          QA_SETUP_FAILURE: '1'
+        run: |
+          if [ ! -f ".qa-results/$QA_SUITE/results.json" ]; then
+            python tool/qa/run.py
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: VITALIS-load-Excel-and-evidence
+          path: .qa-results/load/
+          retention-days: 30
+          if-no-files-found: error
+  bundle:
+    name: Downloadable combined Excel reports
+    needs: [selenium, appium, bas, dast, load]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      QA_JOB_RESULTS: ${{ toJSON(needs) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - run: python -m pip install -r tool/qa/requirements.txt
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          pattern: VITALIS-*-Excel-and-evidence
+          path: qa-bundle
+      - name: Produce combined outcome report
+        run: python tool/qa/bundle.py
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: VITALIS-Test-Execution-Reports-Bundle
+          path: qa-bundle/
+          retention-days: 30
+          if-no-files-found: error
