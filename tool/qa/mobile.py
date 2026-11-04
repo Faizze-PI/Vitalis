@@ -78,6 +78,8 @@ def dast(report):
 def logs(report):
     crash=adb('logcat','-d','-b','crash'); (report.out/'crash.log').write_text(crash,encoding='utf-8')
     report.case('No attributable fatal crash',lambda:require(PACKAGE not in crash,'Inspect crash.log'),'Crash audit')
+    source=report.out.parents[1]/'.qa-apk'/'source.txt'
+    if source.exists(): report.metrics['apk_source']=source.read_text().strip()
     pid=adb('shell','pidof',PACKAGE).strip().split()[0]
     text=adb('logcat','-d','--pid='+pid); (report.out/'app.log').write_text(text,encoding='utf-8')
     report.metrics['captured_app_log_lines']=len(text.splitlines())
