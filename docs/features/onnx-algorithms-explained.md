@@ -38,4 +38,4 @@ For the numeric demonstration, the three CSV rows are `[1,2]`, `[-1,3]`, and `[0
 
 ## Windows evidence scope
 
-Native Windows CPU CSV inference, image preprocessing, hash/shape rejection, pre-cancellation, and two-image reference parity passed on 2026-11-04. Application packaging and channel integration must be qualified independently before distributing the Windows build. See the current Windows validation report for that status.
+Native Windows CPU CSV inference, image preprocessing, hash/shape rejection, pre-cancellation, and two-image reference parity passed on 2026-11-04. The Windows application-channel integration passed CSV/image package execution; the release bundle passed native dependency checks and was installed and launched locally. See the Windows validation report for remaining qualification limits.
