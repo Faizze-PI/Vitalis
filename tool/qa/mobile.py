@@ -24,7 +24,15 @@ def run(report):
         WebDriverWait(driver,30).until(lambda d:markers[label] in d.page_source)
         require(driver.current_package==PACKAGE,'App left foreground')
     try:
-        report.case('Startup exposes usable settings',lambda:tab('Settings'),'Startup')
+        from history_fixture import seed
+        def prepare():
+            WebDriverWait(driver,90).until(lambda d:'Open Model Library' in d.page_source)
+            driver.save_screenshot(str(report.out/'fresh-model-setup.png'))
+            (report.out/'fresh-model-setup.xml').write_text(driver.page_source,encoding='utf-8')
+            seed(report)
+            driver.activate_app(PACKAGE)
+            tab('Settings')
+        report.case('Fresh model setup then saved-history fixture reaches navigation',prepare,'Startup prerequisites')
         require(report.cases[-1]['status']=='PASS','Startup gate failed; dependent UI scenarios cannot execute')
         if report.suite=='appium':
             for font in [.85,1.0,1.15,1.3,1.5]:
@@ -53,7 +61,14 @@ def run(report):
                 widget_actions=300,scope='300 sequential UI workload samples; not 300 unique features, concurrent users, model TTFT or translated-device performance ratification.')
         driver.save_screenshot(str(report.out/'final-screen.png'))
         (report.out/'hierarchy.xml').write_text(driver.page_source,encoding='utf-8')
-    finally: driver.quit()
+    finally:
+        try:
+            driver.save_screenshot(str(report.out/'last-visible-screen.png'))
+            (report.out/'last-hierarchy.xml').write_text(driver.page_source,encoding='utf-8')
+            (report.out/'complete-emulator-logcat.log').write_text(adb('logcat','-d'),encoding='utf-8')
+        except Exception as capture_error:
+            (report.out/'capture-error.txt').write_text(str(capture_error),encoding='utf-8')
+        driver.quit()
 
 def dast(report):
     for component in ['.transfer.TransferJobService','androidx.work.impl.foreground.SystemForegroundService']:

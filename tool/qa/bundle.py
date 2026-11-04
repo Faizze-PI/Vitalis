@@ -1,12 +1,12 @@
 import json, os
 from pathlib import Path
 import xlsxwriter
-root=Path('.qa-bundle'); root.mkdir(exist_ok=True)
+root=Path('qa-bundle'); root.mkdir(exist_ok=True)
 jobs=json.loads(os.environ['QA_JOB_RESULTS'])
 book=xlsxwriter.Workbook(root/'FINAL_TEST_SUMMARY.xlsx',{'strings_to_formulas':False,'strings_to_urls':False})
 sheet=book.add_worksheet('EXECUTIVE SUMMARY')
 head=book.add_format({'bold':True,'bg_color':'#183B56','font_color':'white'})
-sheet.write_row(0,0,['VITALIS CI test programme — actual execution'],head)
+sheet.write_row(0,0,['VITALIS CI test programme â€” actual execution'],head)
 sheet.write_row(3,0,['Suite','Job','Executed','Passed','Failed','Skipped','Minimum','Verdict'],head)
 all_pass=True; rows=[]
 for i,name in enumerate(['selenium','appium','bas','dast','load'],4):
