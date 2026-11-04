@@ -21,6 +21,7 @@ def bas(report):
 def main():
     report=Report(os.environ['QA_SUITE'])
     try:
+        require(not os.environ.get('QA_SETUP_FAILURE'),'Tooling or emulator setup failed; application checks did not run. Inspect retained Actions logs.')
         if report.suite=='bas': bas(report)
         elif report.suite=='selenium':
             from browser import run
