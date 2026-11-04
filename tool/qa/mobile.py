@@ -6,6 +6,14 @@ def tab_description_pattern(label):
     require(label in ['Chats','Models','Saved','Settings'],'Unknown navigation destination')
     return '(?s)^'+re.escape(label)+r'(?:\n.*)?$'
 
+def find_navigation_element(driver,label):
+    pattern=tab_description_pattern(label)
+    selector='new UiSelector().descriptionStartsWith('+json.dumps(label)+').clickable(true)'
+    for element in driver.find_elements('-android uiautomator',selector):
+        if re.fullmatch(pattern,element.get_attribute('contentDescription') or ''):
+            return element
+    return False
+
 def adb(*args,check=True):
     r=subprocess.run(['adb',*args],text=True,capture_output=True,timeout=45)
     if check: require(r.returncode==0,r.stdout+r.stderr)
@@ -14,7 +22,6 @@ def adb(*args,check=True):
 def run(report):
     from appium import webdriver
     from appium.options.android import UiAutomator2Options
-    from appium.webdriver.common.appiumby import AppiumBy
     from selenium.webdriver.support.ui import WebDriverWait
     options=UiAutomator2Options().load_capabilities({'platformName':'Android','appium:automationName':'UiAutomator2',
         'appium:udid':os.environ.get('ANDROID_SERIAL','emulator-5554'),'appium:appPackage':PACKAGE,
@@ -22,8 +29,7 @@ def run(report):
         'appium:newCommandTimeout':120,'appium:adbExecTimeout':60000,'appium:appWaitDuration':90000})
     driver=webdriver.Remote('http://127.0.0.1:4723',options=options)
     def tab(label):
-        selector='new UiSelector().descriptionMatches('+json.dumps(tab_description_pattern(label))+').clickable(true)'
-        WebDriverWait(driver,90).until(lambda d:d.find_element(AppiumBy.ANDROID_UIAUTOMATOR,selector)).click()
+        WebDriverWait(driver,90).until(lambda d:find_navigation_element(d,label)).click()
         markers={'Chats':'New Chat','Models':'Model Library','Saved':'Reusable context for your conversations','Settings':'Appearance'}
         WebDriverWait(driver,30).until(lambda d:markers[label] in d.page_source)
         require(driver.current_package==PACKAGE,'App left foreground')
