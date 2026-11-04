@@ -18,7 +18,7 @@ Every job uploads Excel, CSV, HTML, JSON and available raw evidence. The final *
 
 ## Android execution
 
-The hosted disposable API-30 Google APIs x86_64 image must advertise arm64-v8a compatibility before the production-ABI debug APK can install. Google documents ARM translation in Android 11 emulator images. The job fails explicitly if that capability is absent. This is functional translation evidence and does not replace API-28/API-35 ARM64, physical-device, thermal or inference-performance evidence. No x86 production build or personal-phone change is introduced.
+The mobile jobs run the unchanged arm64 APK on native ARM Android API 35 using the pinned container described below. The earlier API-30 x86 translation attempt failed before Flutter rendered and is retained only as failed infrastructure evidence. No x86 production build or personal-phone change is introduced.
 
 Appium listens only on localhost, without relaxed-security flags. All attack/fuzz/load traffic targets the disposable emulator or isolated fixtures. Hugging Face receives only bounded anonymous read-only checks, never attack or load traffic.
 
@@ -28,7 +28,7 @@ Status: implementation under test. No new workflow PASS is claimed until actual 
 
 ## Disposable data prerequisites
 
-Appium first checks that a fresh installation displays model setup. Navigation/load cases then use one saved-history fixture in the app-created database, with no model records or invented model validation. Fixture writes require GitHub Actions, an emulator serial and the Android emulator property; the stopped database is checked, seeded, checkpointed and hash-verified before app restart. This exercises the supported saved-history / unavailable-model state. No personal handset or user database is touched.
+Appium first checks that a fresh installation displays model setup. Navigation/load cases then use one saved-history fixture in the app-created database, with no model records or invented model validation. Fixture writes require GitHub Actions plus either a verified emulator identity or localhost native Android with the current run's Docker ownership label; the stopped database is checked, seeded, checkpointed and hash-verified before app restart. This exercises the supported saved-history / unavailable-model state. No personal handset or user database is touched.
 
 Host execution explicitly includes both `test` and `test_benchmarks`; the latter contains three established core-300 cases. Failed completeness must preserve all completed case rows. Setup fallback writes a failure report only when no report already exists. The final bundle uses a non-hidden artifact directory so GitHub uploads failing as well as passing workbooks.
 ## Implementation evidence — 4 November 2026
