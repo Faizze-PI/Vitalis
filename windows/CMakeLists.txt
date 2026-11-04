@@ -41,7 +41,12 @@ function(APPLY_STANDARD_SETTINGS TARGET)
   target_compile_features(${TARGET} PUBLIC cxx_std_17)
   target_compile_options(${TARGET} PRIVATE /W4 /WX /wd"4100")
   target_compile_options(${TARGET} PRIVATE /EHsc)
-  target_compile_definitions(${TARGET} PRIVATE "_HAS_EXCEPTIONS=0")
+  if("${TARGET}" STREQUAL "${BINARY_NAME}")
+    # Native ONNX failures must unwind into typed channel errors (HC-083).
+    target_compile_definitions(${TARGET} PRIVATE "_HAS_EXCEPTIONS=1")
+  else()
+    target_compile_definitions(${TARGET} PRIVATE "_HAS_EXCEPTIONS=0")
+  endif()
   target_compile_definitions(${TARGET} PRIVATE "$<$<CONFIG:Debug>:_DEBUG>")
 endfunction()
 
@@ -50,6 +55,7 @@ set(FLUTTER_MANAGED_DIR "${CMAKE_CURRENT_SOURCE_DIR}/flutter")
 add_subdirectory(${FLUTTER_MANAGED_DIR})
 
 # Application build; see runner/CMakeLists.txt.
+add_subdirectory("onnxruntime")
 add_subdirectory("runner")
 
 

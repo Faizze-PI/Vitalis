@@ -63,7 +63,7 @@ $Crt = @(Get-ChildItem -LiteralPath $Redist -Directory | Where-Object Name -matc
     Get-ChildItem -Path (Join-Path $_.FullName 'x64/Microsoft.VC*.CRT') -Directory
 } | Select-Object -First 1)
 if ($Crt.Count -ne 1) { throw 'The build-tool C++ redistributable is missing.' }
-foreach ($Name in @('msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll')) {
+foreach ($Name in @('msvcp140.dll','msvcp140_1.dll','vcruntime140.dll','vcruntime140_1.dll')) {
     Copy-Item -LiteralPath (Join-Path $Crt[0].FullName $Name) -Destination $Destination
 }
 foreach ($Name in @('LICENSE','NOTICE','THIRD_PARTY_NOTICES.md')) {

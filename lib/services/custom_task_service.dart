@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'package:flutter/services.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:llm_llamacpp/llm_llamacpp.dart';
 import '../models/custom_task_spec.dart';
 import 'hardware_sentinel_service.dart';
@@ -58,7 +59,15 @@ final class CustomTaskService implements PackageTaskRunner {
   static Future<Map<Object?, Object?>?> _platformInvoke(
     String method,
     Map<String, Object?> args,
-  ) => _channel.invokeMapMethod<Object?, Object?>(method, args);
+  ) async {
+    final nativeArgs = <String, Object?>{...args};
+    if (Platform.isWindows && method == 'run') {
+      nativeArgs['appSupportPath'] =
+          (await getApplicationSupportDirectory()).path;
+    }
+    return _channel.invokeMapMethod<Object?, Object?>(method, nativeArgs);
+  }
+
   static Future<({int modelBytes, int inputElements})> deviceLimits() async {
     final values = await _platformInvoke('limits', {});
     final model = values?['maxModelBytes'], input = values?['maxInputElements'];

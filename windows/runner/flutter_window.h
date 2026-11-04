@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "win32_window.h"
+#include "onnx_task_channel.h"
 
 // A window that does nothing but host a Flutter view.
 class FlutterWindow : public Win32Window {
@@ -25,6 +26,7 @@ class FlutterWindow : public Win32Window {
                          LPARAM const lparam) noexcept override;
 
  private:
+  std::unique_ptr<OnnxTaskChannel> task_channel_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> safety_channel_;
   std::unique_ptr<flutter::MethodChannel<flutter::EncodableValue>> storage_channel_;
 

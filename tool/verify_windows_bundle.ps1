@@ -11,10 +11,10 @@ $SystemLibraries = @(
     'advapi32.dll','bcrypt.dll','crypt32.dll','d3d9.dll','d3d11.dll','d3dcompiler_47.dll',
     'dbghelp.dll','dwmapi.dll','dxgi.dll','gdi32.dll','imm32.dll','iphlpapi.dll',
     'kernel32.dll','ntdll.dll','ole32.dll','oleacc.dll','oleaut32.dll','opengl32.dll',
-    'propsys.dll','psapi.dll','rpcrt4.dll','shell32.dll','shlwapi.dll','uiautomationcore.dll',
-    'user32.dll','userenv.dll','version.dll','winhttp.dll','winmm.dll','ws2_32.dll'
+    'propsys.dll','psapi.dll','rpcrt4.dll','shell32.dll','shlwapi.dll','uiautomationcore.dll','setupapi.dll',
+    'user32.dll','userenv.dll','version.dll','winhttp.dll','winmm.dll','ws2_32.dll','windowscodecs.dll'
 )
-foreach ($Name in @('VITALIS.exe','flutter_windows.dll','llama.dll','ggml.dll','ggml-base.dll','ggml-cpu.dll','sqlite3.dll','msvcp140.dll','vcruntime140.dll','vcruntime140_1.dll')) {
+foreach ($Name in @('VITALIS.exe','flutter_windows.dll','onnxruntime.dll','onnxruntime_providers_shared.dll','llama.dll','ggml.dll','ggml-base.dll','ggml-cpu.dll','sqlite3.dll','msvcp140.dll','msvcp140_1.dll','vcruntime140.dll','vcruntime140_1.dll')) {
     if ($Name.ToLowerInvariant() -notin $Names) { throw "Required bundled runtime is missing: $Name" }
 }
 $Results = @()
@@ -38,8 +38,10 @@ foreach ($Symbol in @('llama_model_load_from_file','llama_decode','vitalis_cance
     if (-not ($Exports -match "\s$Symbol\s*$")) { $Failures += "Missing native symbol: $Symbol" }
 }
 $Signing = (Get-AuthenticodeSignature (Join-Path $Bundle 'VITALIS.exe')).Status.ToString()
+$OrtExports = & $Dumpbin /exports (Join-Path $Bundle 'onnxruntime.dll')
+if ($LASTEXITCODE -or -not ($OrtExports -match '\sOrtGetApiBase\s*$')) { $Failures += 'Missing ONNX Runtime entry point.' }
 if ($Signing -ne 'NotSigned') { $Failures += "Preview signing status is not positively unsigned: $Signing" }
-$Forbidden = @(Get-ChildItem -LiteralPath $Bundle -Recurse -File | Where-Object { $_.Extension -in @('.gguf','.jks','.keystore','.pdb','.db','.sqlite') })
+$Forbidden = @(Get-ChildItem -LiteralPath $Bundle -Recurse -File | Where-Object { $_.Extension -in @('.gguf','.onnx','.jks','.keystore','.pdb','.db','.sqlite') })
 if ($Forbidden.Count) { $Failures += 'Unexpected model, signing material, debug symbols or user database in package.' }
 @{files=$Results; signing=$Signing; failures=$Failures} | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $Report
 if ($Failures.Count) { throw ($Failures -join [Environment]::NewLine) }

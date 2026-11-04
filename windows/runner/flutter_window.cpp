@@ -30,6 +30,7 @@ bool FlutterWindow::OnCreate() {
   }
   RegisterPlugins(flutter_controller_->engine());
   auto messenger = flutter_controller_->engine()->messenger();
+  task_channel_ = std::make_unique<OnnxTaskChannel>(messenger, GetHandle());
   safety_channel_ = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
       messenger, "vitalis/device_safety", &flutter::StandardMethodCodec::GetInstance());
   safety_channel_->SetMethodCallHandler([](const auto& call, auto result) {
@@ -95,6 +96,7 @@ bool FlutterWindow::OnCreate() {
 }
 
 void FlutterWindow::OnDestroy() {
+  task_channel_ = nullptr;
   storage_channel_ = nullptr;
   safety_channel_ = nullptr;
   if (flutter_controller_) {
@@ -108,6 +110,7 @@ LRESULT
 FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
                               WPARAM const wparam,
                               LPARAM const lparam) noexcept {
+  if (task_channel_ && task_channel_->HandleMessage(message)) return 0;
   // Give Flutter, including plugins, an opportunity to handle window messages.
   if (flutter_controller_) {
     std::optional<LRESULT> result =

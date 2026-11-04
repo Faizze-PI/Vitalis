@@ -20,3 +20,5 @@ Windows preview packages also include the SQLite runtime supplied by the locked 
 Algorithm package import uses archive 4.6.0 (MIT; Brendan Duncan attribution)
 and its locked posix dependency. Preserve their generated Flutter licence notices
 with distributed builds; model-package weights retain their own publisher terms.
+
+Windows algorithm execution includes Microsoft's ONNX Runtime 1.24.4 CPU DLLs (MIT). The official distribution and matching headers are SHA-256 locked in windows/onnxruntime/dependency.lock.json. Its LICENSE and ThirdPartyNotices.txt are included under licenses/onnxruntime in the portable bundle. No Python runtime or model weights are bundled.
