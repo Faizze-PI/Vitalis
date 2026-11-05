@@ -20,7 +20,7 @@ The user reduced the programme on 5 November 2026 to **nine suites, 300 target c
 
 Smoothness, concurrency and cross-build regression are excluded at the user's request. Their previous definitions remain disabled in the catalogue for traceability. The executive workbook includes an **EXCLUDED SUITES** sheet and the JSON uses `USER_EXCLUDED`. Exclusion is not a pass, a failure, or proof that a capability is unsupported.
 
-The workflow has no concurrency or regression workload jobs. Its volume job runs only the 20 production-storage cases and does not download an inference model. Its Android execution list contains only the four selected additional suites. The original five-suite/300-case programme is independent and keeps its original thresholds.
+The workflow has no concurrency or regression workload jobs. Its volume job runs only the 20 production-storage cases and does not download an inference model. Its Android execution list contains only the four selected additional suites. The original five-suite programme is independent: each suite retains its minimum of 300 cases.
 
 ## Reusing completed results
 
@@ -38,8 +38,25 @@ Native ARM Android API 35 uses the pinned container, localhost-only ADB and an u
 
 Every selected suite retains source/build identity, actual outcomes, measured samples, raw logs and Excel/CSV/HTML/JSON reports. Driver HTTP timings/counts are separate from UI timing. Native helper emission is not called visible TTFT. Missing evidence is BLOCKED, with no successful execution claimed.
 
-Download **VITALIS-Performance-Resilience-Excel-Bundle** from the final job for the executive workbook, nine suite workbooks, explicit exclusions and raw evidence. Reports remain downloadable on HOLD or failure. A selected-programme pass does not establish physical-phone, API-28, thermal, production-speed, long-duration leak-free or complete-security qualification.
+Download **VITALIS-300-Case-Excel-Reports** from the volume-completion job for the final executive workbook, nine suite workbooks, explicit exclusions and raw evidence. The earlier **VITALIS-Performance-Resilience-Excel-Bundle** is the historical eight-suite snapshot. Reports remain downloadable on HOLD or failure. A selected-programme pass does not establish physical-phone, API-28, thermal, production-speed, long-duration leak-free or complete-security qualification.
 
 ## Final completion without restarting the active tests
 
 The user added the 20-case volume suite to make exactly 300 target cases, and requested no further suites. `volume-completion.yml` lets the existing eight-suite run finish, executes only volume, then verifies and imports the eight original reports unchanged. It validates source equivalence, unique/passing counts, the prior reuse-provenance chain, and matching Excel rows. The final **VITALIS-300-Case-Excel-Reports** artifact contains the nine-suite executive workbook plus original raw evidence. The nested earlier summary is a historical eight-suite snapshot; the top-level summary is authoritative for the final 300-case programme.
+
+
+## Complete consolidated download
+
+[Download all test reports and the final assessment](https://github.com/Faizze-PI/Vitalis/actions/runs/41982786541/artifacts/13395115193) from the [successful packaging-only run](https://github.com/Faizze-PI/Vitalis/actions/runs/41982786541).
+
+The artifact **VITALIS-All-Test-Reports-and-Final-Assessment** contains:
+
+- `FINAL_ASSESSMENT.csv`, `.xlsx` and `.json`.
+- `01_Behaviour_API_Security`: the original Selenium, Appium, BAS, DAST and load reports, unchanged.
+- `02_Performance_300`: the final nine-suite, 300-case programme, unchanged.
+- `TUNING_REGRESSION_SUBSET.csv`: 38 passing regression cases already included within BAS; these are not device-tuning benchmarks.
+- `SHA256_INVENTORY.json`: hashes for the packaged files.
+
+The total is **2,401 passing case records across 14 named suites**: 2,101 from the original programme plus 300 additional performance cases. Supporting root-test output, catalogues and the tuning subset are not counted again. Original source commits and execution run URLs remain in each report. The final assessment explicitly lists the three user-excluded suites and the unexecuted device-tuning benchmark.
+
+Consolidation runs no application tests. This artifact was uploaded on 5 November 2026 with 30-day retention; download it before expiry. Its scoped passing results do not ratify the complete application or physical-phone performance.
