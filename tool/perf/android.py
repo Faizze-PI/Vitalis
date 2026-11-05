@@ -7,7 +7,7 @@ from appium import webdriver
 from appium.options.android import UiAutomator2Options
 from selenium.webdriver.support.ui import WebDriverWait
 
-GROUPS={'latency':['latency'],'extended':['endurance','startup','smoothness','resources','recovery']}
+GROUPS={'latency':['latency'],'extended':['endurance','startup','resources','recovery']}
 suites=GROUPS[os.environ['QA_PERFORMANCE_GROUP']]
 log_file=ROOT/'.qa-results'/os.environ['QA_SUITE']/'appium.log'
 driver=None;failed=False

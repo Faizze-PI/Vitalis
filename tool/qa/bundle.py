@@ -3,7 +3,9 @@ from pathlib import Path
 import xlsxwriter
 root=Path('qa-bundle'); root.mkdir(exist_ok=True)
 jobs=json.loads(os.environ['QA_JOB_RESULTS'])
-programme=json.loads(os.environ.get('QA_PROGRAMME',json.dumps([dict(name=n,job=n,minimum=300) for n in ['selenium','appium','bas','dast','load']])))
+definition=json.loads(os.environ.get('QA_PROGRAMME',json.dumps([dict(name=n,job=n,minimum=300) for n in ['selenium','appium','bas','dast','load']])))
+programme=[item for item in definition if item.get('enabled',True)]
+excluded=[dict(suite=item['name'],status='USER_EXCLUDED',reason=item.get('exclusion_reason','Excluded from selected programme')) for item in definition if not item.get('enabled',True)]
 book=xlsxwriter.Workbook(root/'FINAL_TEST_SUMMARY.xlsx',{'strings_to_formulas':False,'strings_to_urls':False})
 sheet=book.add_worksheet('EXECUTIVE SUMMARY')
 head=book.add_format({'bold':True,'bg_color':'#183B56','font_color':'white'})
@@ -35,7 +37,12 @@ for i,item in enumerate(programme,4):
 sheet.set_column(0,1,28); sheet.set_column(2,8,18)
 sheet.write_row(len(programme)+6,0,['Programme verdict','PASS' if all_pass else 'HOLD'])
 sheet.write_row(len(programme)+8,0,['Scope',os.environ.get('QA_SCOPE','See each suite: browser/API contracts, UI scenarios, defensive BAS, native ingress DAST, sequential workload.')])
-book.close(); (root/'FINAL_TEST_SUMMARY.json').write_text(json.dumps({'status':'PASS' if all_pass else 'HOLD','suites':rows,'report_integrity_problems':problems},indent=2))
+if excluded:
+    exclusions=book.add_worksheet('EXCLUDED SUITES')
+    exclusions.write_row(0,0,['Suite','Status','Reason'],head)
+    exclusions.set_column(0,1,24);exclusions.set_column(2,2,85)
+    for index,item in enumerate(excluded,1):exclusions.write_row(index,0,[item['suite'],item['status'],item['reason']])
+book.close(); (root/'FINAL_TEST_SUMMARY.json').write_text(json.dumps({'status':'PASS' if all_pass else 'HOLD','suites':rows,'report_integrity_problems':problems,'excluded_suites':excluded},indent=2))
 with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:
     f.write('## VITALIS '+str(len(programme))+'-suite programme: '+('PASS' if all_pass else 'HOLD')+'\n\nDownload the combined Excel artifact for the executive workbook and every suite workbook, HTML/CSV/JSON report and raw evidence.\n')
 raise SystemExit(0 if all_pass else 1)

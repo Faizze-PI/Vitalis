@@ -4,11 +4,12 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'tool/qa'))
 from report import Report,require
-__all__=['Report','ROOT','POLICY','CATALOGUE','require','EvidenceUnavailable','percentile','frame_durations','regression_pairs','host_cpu_identity','case_count','baseline_samples']
+__all__=['Report','ROOT','POLICY','CATALOGUE','require','EvidenceUnavailable','percentile','frame_durations','regression_pairs','host_cpu_identity','case_count','baseline_samples','ALL_SUITES']
 POLICY=json.loads((ROOT/'tool/perf/policy.json').read_text())
-CATALOGUE=json.loads((ROOT/'tool/perf/catalogue.json').read_text())
+ALL_SUITES=json.loads((ROOT/'tool/perf/catalogue.json').read_text())
+CATALOGUE=[row for row in ALL_SUITES if row.get('enabled',True)]
 def case_count(suite):
-    return next(row['minimum'] for row in CATALOGUE if row['name']==suite)
+    return next(row['minimum'] for row in ALL_SUITES if row['name']==suite)
 
 class EvidenceUnavailable(Exception): pass
 
