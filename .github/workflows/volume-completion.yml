@@ -1,0 +1,111 @@
+name: Final volume suite and 300-case report
+'on':
+  workflow_dispatch:
+    inputs:
+      prior_run:
+        description: Existing eight-suite run to finish without repeating it
+        type: string
+        default: '41969032346'
+  push:
+    branches:
+    - ci/performance-resilience-20261105
+    paths:
+    - .github/workflows/volume-completion.yml
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: volume-completion-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  volume:
+    name: 'Final volume suite: 20 cases'
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      PERF_SUITES: volume
+      PRIOR_RUN: ${{ inputs.prior_run || '41969032346' }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+    - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      with:
+        python-version: '3.12'
+    - run: python -m pip install -r tool/qa/requirements.txt
+    - name: Verify report and measurement contracts
+      run: python -m pyflakes tool/qa tool/perf && python tool/qa/test_reporting.py && python tool/perf/test_contracts.py
+    - id: policy
+      run: node -e 'const fs=require("fs"),p=JSON.parse(fs.readFileSync("tool/toolchain_policy.json")); for(const k of ["flutter","jdk"])fs.appendFileSync(process.env.GITHUB_OUTPUT,k+"="+p[k]+"\n");'
+    - uses: ./.github/actions/setup
+      with:
+        flutter: ${{ steps.policy.outputs.flutter }}
+        jdk: ${{ steps.policy.outputs.jdk }}
+    - run: ./tool/run_gate.sh pub get --enforce-lockfile
+    - name: Format and analyze maintained performance tests
+      run: |-
+        dart format --output=none --set-exit-if-changed test_performance
+        ./tool/run_gate.sh analyze test_performance --no-pub
+    - name: Let the existing four-suite job finish first
+      run: python tool/perf/wait_for_retained.py
+    - name: Run ordered production-component workloads
+      run: python tool/perf/host.py
+    - name: Retain missing-suite prerequisite holds
+      if: failure()
+      run: python tool/perf/unavailable.py
+    - name: Prepare downloadable evidence
+      if: always()
+      run: |-
+        mkdir -p performance-evidence .qa-results
+        cp -a .qa-results/. performance-evidence/
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      if: always()
+      with:
+        name: VITALIS-perf-host-volume-Excel-and-evidence
+        path: performance-evidence/
+        retention-days: 30
+        if-no-files-found: error
+  bundle:
+    name: Downloadable final 300-case Excel bundle
+    needs:
+    - volume
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      PRIOR_RUN: ${{ inputs.prior_run || '41969032346' }}
+      GH_TOKEN: ${{ github.token }}
+      VOLUME_JOB_RESULT: ${{ needs.volume.result }}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+    - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      with:
+        python-version: '3.12'
+    - run: python -m pip install -r tool/qa/requirements.txt
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      continue-on-error: true
+      with:
+        name: VITALIS-Performance-Resilience-Excel-Bundle
+        path: qa-bundle/retained-eight
+        run-id: ${{ inputs.prior_run || '41969032346' }}
+        github-token: ${{ github.token }}
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      continue-on-error: true
+      with:
+        name: VITALIS-perf-host-volume-Excel-and-evidence
+        path: qa-bundle/new-volume
+    - name: Verify retained evidence and compile the final workbook
+      run: python tool/perf/complete_evidence.py
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      if: always()
+      with:
+        name: VITALIS-300-Case-Excel-Reports
+        path: qa-bundle/
+        retention-days: 30
+        if-no-files-found: error
