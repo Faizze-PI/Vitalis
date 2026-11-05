@@ -11,7 +11,7 @@ sheet=book.add_worksheet('EXECUTIVE SUMMARY')
 head=book.add_format({'bold':True,'bg_color':'#183B56','font_color':'white'})
 sheet.write_row(0,0,['VITALIS CI test programme - actual execution'],head)
 sheet.write_row(3,0,['Suite','Job','Executed','Passed','Failed','Skipped','Blocked','Minimum','Verdict'],head)
-all_pass=True; rows=[]; reports=[]; problems=[]
+all_pass=True; rows=[]; reports=[]; problems=json.loads(os.environ.get('QA_EVIDENCE_PROBLEMS','[]'))
 for path in root.rglob('results.json'):
     try:
         data=json.loads(path.read_text(encoding='utf-8'))

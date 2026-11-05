@@ -66,10 +66,9 @@
   {
     "order": 10,
     "name": "volume",
-    "job": "host_late",
+    "job": "host_volume",
     "minimum": 20,
-    "enabled": false,
-    "exclusion_reason": "User reduced scope to four additional suites on 2026-11-05"
+    "enabled": true
   },
   {
     "order": 11,

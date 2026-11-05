@@ -1,6 +1,6 @@
 # Selected performance and resilience programme
 
-The user reduced the programme on 5 November 2026 to **eight suites, 280 target cases**: four completed suites retain their 50 cases each, and four additional suites have 20 cases each. The four excluded suites are not required, not scheduled, and never labelled passed. Earlier attempts remain historical evidence.
+The user reduced the programme on 5 November 2026 to **nine suites, 300 target cases**: four completed suites retain their 50 cases each, and five additional suites have 20 cases each. The three excluded suites are not required, not scheduled, and never labelled passed. Earlier attempts remain historical evidence.
 
 ## Selected suites
 
@@ -14,12 +14,13 @@ The user reduced the programme on 5 November 2026 to **eight suites, 280 target 
 | 6 | Startup | 20 | Ten stopped-process starts and ten background resumes; Android launch time separately from accessible Flutter readiness |
 | 7 | Resources | 20 | Complete process-memory/CPU snapshots during UI activity; container battery/thermal values do not establish physical energy or temperature behaviour |
 | 8 | Recovery | 20 | Short/long background, explicit force-stop/relaunch, portrait/landscape and preserved saved-content visibility; force-stop is not ordinary process death |
+| 9 | Volume | 20 | Production SQLite pagination and complete export with 100-10,000 multilingual messages; elapsed time includes dataset preparation and validation |
 
 ## Explicitly excluded
 
-Smoothness, volume, concurrency and cross-build regression are excluded at the user's request. Their previous definitions remain disabled in the catalogue for traceability. The executive workbook includes an **EXCLUDED SUITES** sheet and the JSON uses `USER_EXCLUDED`. Exclusion is not a pass, a failure, or proof that a capability is unsupported.
+Smoothness, concurrency and cross-build regression are excluded at the user's request. Their previous definitions remain disabled in the catalogue for traceability. The executive workbook includes an **EXCLUDED SUITES** sheet and the JSON uses `USER_EXCLUDED`. Exclusion is not a pass, a failure, or proof that a capability is unsupported.
 
-The workflow has no host-late or regression workload jobs. Its Android execution list contains only the four selected additional suites. The original five-suite/300-case programme is independent and keeps its original thresholds.
+The workflow has no concurrency or regression workload jobs. Its volume job runs only the 20 production-storage cases and does not download an inference model. Its Android execution list contains only the four selected additional suites. The original five-suite/300-case programme is independent and keeps its original thresholds.
 
 ## Reusing completed results
 
@@ -37,4 +38,8 @@ Native ARM Android API 35 uses the pinned container, localhost-only ADB and an u
 
 Every selected suite retains source/build identity, actual outcomes, measured samples, raw logs and Excel/CSV/HTML/JSON reports. Driver HTTP timings/counts are separate from UI timing. Native helper emission is not called visible TTFT. Missing evidence is BLOCKED, with no successful execution claimed.
 
-Download **VITALIS-Performance-Resilience-Excel-Bundle** from the final job for the executive workbook, eight suite workbooks, explicit exclusions and raw evidence. Reports remain downloadable on HOLD or failure. A selected-programme pass does not establish physical-phone, API-28, thermal, production-speed, long-duration leak-free or complete-security qualification.
+Download **VITALIS-Performance-Resilience-Excel-Bundle** from the final job for the executive workbook, nine suite workbooks, explicit exclusions and raw evidence. Reports remain downloadable on HOLD or failure. A selected-programme pass does not establish physical-phone, API-28, thermal, production-speed, long-duration leak-free or complete-security qualification.
+
+## Final completion without restarting the active tests
+
+The user added the 20-case volume suite to make exactly 300 target cases, and requested no further suites. `volume-completion.yml` lets the existing eight-suite run finish, executes only volume, then verifies and imports the eight original reports unchanged. It validates source equivalence, unique/passing counts, the prior reuse-provenance chain, and matching Excel rows. The final **VITALIS-300-Case-Excel-Reports** artifact contains the nine-suite executive workbook plus original raw evidence. The nested earlier summary is a historical eight-suite snapshot; the top-level summary is authoritative for the final 300-case programme.

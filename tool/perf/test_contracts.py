@@ -3,17 +3,18 @@ from pathlib import Path
 from common import CATALOGUE,EvidenceUnavailable,frame_durations,regression_pairs,percentile
 class PerformanceContracts(unittest.TestCase):
     def test_completed_suites_keep_fifty_and_remaining_have_twenty(self):
-        self.assertEqual([c['name'] for c in CATALOGUE],['latency','throughput','stress','spike','endurance','startup','resources','recovery'])
-        self.assertEqual(sum(c['minimum'] for c in CATALOGUE),280)
-        self.assertEqual([c['minimum'] for c in CATALOGUE],[50]*4+[20]*4)
+        self.assertEqual([c['name'] for c in CATALOGUE],['latency','throughput','stress','spike','endurance','startup','resources','recovery','volume'])
+        self.assertEqual(sum(c['minimum'] for c in CATALOGUE),300)
+        self.assertEqual([c['minimum'] for c in CATALOGUE],[50]*4+[20]*5)
     def test_workflow_serializes_all_groups_and_preserves_case_minimums(self):
         import yaml
         jobs=yaml.safe_load((Path(__file__).resolve().parents[2]/'.github/workflows/performance-qa.yml').read_text())['jobs']
-        chain=['prepare','android_latency','host_early','android_extended']
+        chain=['prepare','android_latency','host_early','android_extended','host_volume']
         for before,after in zip(chain,chain[1:]): self.assertIn(before,jobs[after]['needs'])
         self.assertEqual(jobs['host_early']['env']['PERF_SUITES'],'throughput,stress,spike')
         self.assertEqual(jobs['android_extended']['env']['PERF_SUITES'],'endurance,startup,resources,recovery')
         self.assertNotIn('host_late',jobs)
+        self.assertEqual(jobs['host_volume']['env']['PERF_SUITES'],'volume')
         self.assertNotIn('regression',jobs)
         import ast
         tree=ast.parse((Path(__file__).resolve().parent/'android.py').read_text())
@@ -36,10 +37,20 @@ class PerformanceContracts(unittest.TestCase):
             result=subprocess.run([sys.executable,str(Path(__file__).resolve().parents[1]/'qa/bundle.py')],cwd=root,env=env)
             self.assertEqual(result.returncode,0)
             report=json.loads((bundle/'FINAL_TEST_SUMMARY.json').read_text())
-            self.assertEqual(len(report['suites']),8)
-            self.assertEqual(sum(row[2] for row in report['suites']),280)
-            self.assertEqual({row['suite'] for row in report['excluded_suites']},{'smoothness','volume','concurrency','regression'})
+            self.assertEqual(len(report['suites']),9)
+            self.assertEqual(sum(row[2] for row in report['suites']),300)
+            self.assertEqual({row['suite'] for row in report['excluded_suites']},{'smoothness','concurrency','regression'})
             self.assertTrue(all(row['status']=='USER_EXCLUDED' for row in report['excluded_suites']))
+            env['QA_EVIDENCE_PROBLEMS']=json.dumps(['Retained source could not be verified'])
+            failed=subprocess.run([sys.executable,str(Path(__file__).resolve().parents[1]/'qa/bundle.py')],cwd=root,env=env)
+            self.assertEqual(failed.returncode,1)
+            self.assertEqual(json.loads((bundle/'FINAL_TEST_SUMMARY.json').read_text())['status'],'HOLD')
+    def test_wait_observes_the_same_run_until_terminal(self):
+        from wait_for_retained import wait_terminal
+        states=iter([{'status':'in_progress'},{'status':'completed','conclusion':'success'}])
+        elapsed=[0]
+        result=wait_terminal(lambda:next(states),clock=lambda:elapsed[0],sleep=lambda seconds:elapsed.__setitem__(0,elapsed[0]+seconds))
+        self.assertEqual(result['conclusion'],'success')
     def test_cpu_metadata_is_read_from_a_real_file_without_serials(self):
         from common import host_cpu_identity
         with tempfile.TemporaryDirectory() as folder:

@@ -24,5 +24,7 @@
   "native_output_tokens": 32,
   "regression_max_ratio": 1.2,
   "profile_artifact_run": "41849803536",
-  "policy_version": 1
+  "policy_version": 1,
+  "prior_run_wait_seconds": 1800,
+  "prior_run_poll_seconds": 15
 }
