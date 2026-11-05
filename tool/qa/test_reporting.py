@@ -1,4 +1,4 @@
-import importlib.util,json,os,shutil,tempfile,unittest
+import json,os,shutil,tempfile,unittest
 from pathlib import Path
 import report as module
 class ReportIntegrity(unittest.TestCase):
@@ -13,6 +13,25 @@ class ReportIntegrity(unittest.TestCase):
         report=module.Report('fixture')
         report.cases=[dict(id=str(i),category='Integrity',name='=untrusted text',status='FAIL' if failed and i==0 else 'PASS',duration_ms=1,detail='') for i in range(count)]
         return report
+    def test_structured_measurements_remain_json_and_render_in_excel(self):
+        report=self.make(300)
+        report.metrics={'environment':{'mode':'profile'},'samples':[{'duration_ms':12.5}]}
+        self.assertEqual(report.write(),0)
+        data=json.loads((report.out/'results.json').read_text())
+        self.assertEqual(data['measurements']['samples'][0]['duration_ms'],12.5)
+    def test_fifty_case_suites_do_not_weaken_existing_minimum(self):
+        report=module.Report('latency',minimum_cases=50)
+        report.cases=self.make(50).cases
+        self.assertEqual(report.write(),0)
+        self.assertEqual(self.make(50).write(),1)
+    def test_blocked_measurements_never_count_as_execution_or_pass(self):
+        report=module.Report('regression',minimum_cases=50)
+        for i in range(50): report.blocked('Comparison '+str(i),'No comparable baseline')
+        self.assertEqual(report.write(),1)
+        data=json.loads((report.out/'results.json').read_text())
+        self.assertEqual(data['counts']['BLOCKED'],50)
+        self.assertEqual(data['executed_cases'],0)
+        self.assertNotEqual(data['status'],'PASS')
     def test_incomplete_run_cannot_pass(self): self.assertEqual(self.make(299).write(),1)
     def test_complete_executed_run_can_pass(self):
         r=self.make(300); self.assertEqual(r.write(),0)

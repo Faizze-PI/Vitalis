@@ -1,4 +1,4 @@
-import json, os, subprocess, sys
+import os, subprocess, sys
 from report import Report, ROOT, require
 
 def bas(report):

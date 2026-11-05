@@ -9,7 +9,8 @@ def validate_environment(serial,ci,qemu,hardware="",container_run="",run_id=""):
     require(ci=='true' and re.fullmatch(r'emulator-\d+',serial) and qemu.strip()=='1',
             'Database fixture is restricted to disposable hosted emulators')
 
-def seed(report):
+def seed(report,chat_count=1):
+    require(type(chat_count) is int and 1<=chat_count<=200,"Bounded fixture chat count required")
     def command(*args,**kwargs):
         return subprocess.run(['adb',*args],check=True,capture_output=True,timeout=30,**kwargs)
     serial=os.environ.get('ANDROID_SERIAL','')
@@ -42,8 +43,9 @@ def seed(report):
             version=db.execute('PRAGMA user_version').fetchone()[0]
             require(version>0,'App database initialization has not committed')
             require(db.execute('SELECT COUNT(*) FROM chats').fetchone()[0]==0,'Fixture requires empty disposable app data')
-            db.execute('INSERT INTO chats(title,created_at,updated_at) VALUES(?,?,?)',
-                       ('CI saved-history fixture','2026-11-04T00:00:00Z','2026-11-04T00:00:00Z'))
+            db.executemany('INSERT INTO chats(title,created_at,updated_at) VALUES(?,?,?)',
+                [('CI saved-history fixture' if chat_count==1 else f'CI fixture {i+1:03}',
+                  '2026-11-04T00:00:00Z','2026-11-04T00:00:00Z') for i in range(chat_count)])
             db.commit(); require(db.execute('PRAGMA wal_checkpoint(TRUNCATE)').fetchone()[0]==0,'Fixture checkpoint is busy')
         db.close()
         blob=target.read_bytes()
@@ -54,4 +56,4 @@ def seed(report):
         require(hashlib.sha256(copied).digest()==hashlib.sha256(blob).digest(),'Fixture copy identity mismatch')
         (report.out/'history-fixture.json').write_text(json.dumps({'scope':'Disposable CI emulator only',
             'database_schema':version,'original_database_sha256':original,'fixture_database_sha256':hashlib.sha256(blob).hexdigest(),
-            'inserted_chats':1,'model_records_inserted':0,'model_validation_fabricated':False},indent=2),encoding='utf-8')
+            'inserted_chats':chat_count,'model_records_inserted':0,'model_validation_fabricated':False},indent=2),encoding='utf-8')

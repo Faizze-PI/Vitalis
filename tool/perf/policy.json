@@ -1,0 +1,30 @@
+{
+  "ui_action_budget_ms": 5000,
+  "startup_budget_ms": 15000,
+  "soak_interval_seconds": 12,
+  "cooldown_seconds": 30,
+  "max_failures": 3,
+  "stress_rows": [
+    100,
+    250,
+    500,
+    1000,
+    2000
+  ],
+  "volume_rows": [
+    100,
+    500,
+    1000,
+    5000,
+    10000
+  ],
+  "native_context": 2048,
+  "native_batch": 128,
+  "native_threads": 2,
+  "native_output_tokens": 32,
+  "regression_max_ratio": 1.2,
+  "profile_artifact_run": "41849803536",
+  "policy_version": 1,
+  "prior_run_wait_seconds": 1800,
+  "prior_run_poll_seconds": 15
+}

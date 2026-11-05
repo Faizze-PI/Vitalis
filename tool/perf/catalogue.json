@@ -1,0 +1,89 @@
+[
+  {
+    "order": 1,
+    "name": "latency",
+    "job": "android_latency",
+    "minimum": 50,
+    "enabled": true
+  },
+  {
+    "order": 2,
+    "name": "throughput",
+    "job": "host_early",
+    "minimum": 50,
+    "enabled": true
+  },
+  {
+    "order": 3,
+    "name": "stress",
+    "job": "host_early",
+    "minimum": 50,
+    "enabled": true
+  },
+  {
+    "order": 4,
+    "name": "spike",
+    "job": "host_early",
+    "minimum": 50,
+    "enabled": true
+  },
+  {
+    "order": 5,
+    "name": "endurance",
+    "job": "android_extended",
+    "minimum": 20,
+    "enabled": true
+  },
+  {
+    "order": 6,
+    "name": "startup",
+    "job": "android_extended",
+    "minimum": 20,
+    "enabled": true
+  },
+  {
+    "order": 7,
+    "name": "smoothness",
+    "job": "android_extended",
+    "minimum": 20,
+    "enabled": false,
+    "exclusion_reason": "User reduced scope to four additional suites on 2026-11-05"
+  },
+  {
+    "order": 8,
+    "name": "resources",
+    "job": "android_extended",
+    "minimum": 20,
+    "enabled": true
+  },
+  {
+    "order": 9,
+    "name": "recovery",
+    "job": "android_extended",
+    "minimum": 20,
+    "enabled": true
+  },
+  {
+    "order": 10,
+    "name": "volume",
+    "job": "host_volume",
+    "minimum": 20,
+    "enabled": true
+  },
+  {
+    "order": 11,
+    "name": "concurrency",
+    "job": "host_late",
+    "minimum": 20,
+    "enabled": false,
+    "exclusion_reason": "User reduced scope to four additional suites on 2026-11-05"
+  },
+  {
+    "order": 12,
+    "name": "regression",
+    "job": "regression",
+    "minimum": 20,
+    "enabled": false,
+    "exclusion_reason": "User reduced scope to four additional suites on 2026-11-05"
+  }
+]

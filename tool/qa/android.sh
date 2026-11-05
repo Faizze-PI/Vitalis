@@ -22,7 +22,9 @@ for attempt in range(60):
     except OSError: time.sleep(1)
 else: raise SystemExit('Appium server did not become ready')
 PY
-if [[ "${QA_NAVIGATION_SMOKE:-0}" = 1 ]]; then
+if [[ -n "${QA_PERFORMANCE_GROUP:-}" ]]; then
+  python tool/perf/android.py
+elif [[ "${QA_NAVIGATION_SMOKE:-0}" = 1 ]]; then
   python tool/qa/navigation_smoke.py
 else
   python tool/qa/run.py
