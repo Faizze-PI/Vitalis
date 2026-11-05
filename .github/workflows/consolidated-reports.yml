@@ -1,0 +1,53 @@
+name: All test reports and final assessment
+on:
+  workflow_dispatch:
+  push:
+    branches: [ci/performance-resilience-20261105]
+    paths: [.github/workflows/consolidated-reports.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  consolidate:
+    name: Package existing evidence only
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+      - run: python -m pip install XlsxWriter==3.3.1
+      - name: Confirm retained executions succeeded
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          for run in 41858158071 41970817958; do
+            gh api repos/${{ github.repository }}/actions/runs/$run --jq '.status + ":" + .conclusion' | grep -x 'completed:success'
+          done
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: VITALIS-Test-Execution-Reports-Bundle
+          path: all-test-reports/01_Behaviour_API_Security
+          run-id: '41858158071'
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          name: VITALIS-300-Case-Excel-Reports
+          path: all-test-reports/02_Performance_300
+          run-id: '41970817958'
+          github-token: ${{ github.token }}
+      - name: Verify counts and produce final CSV and workbook
+        run: python tool/qa/consolidate.py all-test-reports
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: VITALIS-All-Test-Reports-and-Final-Assessment
+          path: all-test-reports/
+          retention-days: 30
+          if-no-files-found: error
+      - name: Publish assessment summary
+        run: |
+          echo '## Consolidated evidence' >> "$GITHUB_STEP_SUMMARY"
+          echo '14 suites; 2,401 passing case records. Additional programme: 300 cases. Final assessment CSV and Excel included. Tuning: 38 BAS regression cases, already counted; no device-tuning benchmark. Packaging only; no new app tests.' >> "$GITHUB_STEP_SUMMARY"
