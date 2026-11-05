@@ -1,0 +1,401 @@
+name: Performance and resilience - 50 cases per suite
+'on':
+  workflow_dispatch:
+    inputs:
+      apk_run:
+        description: Verified debug/profile build run
+        type: string
+        default: '41849803536'
+      baseline_run:
+        description: Optional earlier matching performance run for regression
+        type: string
+        default: ''
+  push:
+    branches:
+    - ci/performance-resilience-20261105
+    paths:
+    - .github/workflows/performance-qa.yml
+    - tool/perf/**
+    - test_performance/**
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: performance-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    name: Verify source-matched profile APK and signing pair
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      APK_RUN: ${{ inputs.apk_run || '41849803536' }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      with:
+        name: android-verification-apks
+        path: .qa-apk
+        run-id: ${{ inputs.apk_run || '41849803536' }}
+        github-token: ${{ github.token }}
+    - run: bash tool/perf/prepare_apk.sh
+    - name: Prepare non-hidden APK artifact root
+      run: |-
+        mkdir -p profile-pair
+        cp -a .qa-apk/. profile-pair/
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      with:
+        name: performance-profile-pair
+        path: profile-pair/
+        retention-days: 14
+        if-no-files-found: error
+  android_latency:
+    name: 'Ordered Android latency: 50 cases per suite'
+    needs:
+    - prepare
+    if: ${{ !cancelled() && needs.prepare.result == 'success' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    env:
+      QA_SUITE: latency
+      QA_ANDROID_CONTAINER: vitalis-performance-android
+      ANDROID_SERIAL: 127.0.0.1:5555
+      QA_PERFORMANCE_GROUP: latency
+      PERF_SUITES: latency
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+    - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      with:
+        python-version: '3.12'
+    - run: python -m pip install -r tool/qa/requirements.txt
+    - name: Verify report and measurement contracts
+      run: python tool/qa/test_reporting.py && python tool/perf/test_contracts.py
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      with:
+        name: performance-profile-pair
+        path: .qa-apk
+    - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+      with:
+        node-version: '24'
+    - name: Install pinned Appium
+      run: npm install --global appium@3.9.0 && appium driver install uiautomator2@8.7.3
+    - name: Execute profile APK measurements
+      run: bash tool/qa/native_android.sh
+    - name: Retain container identity and logs
+      if: always()
+      run: |-
+        mkdir -p .qa-results/$QA_SUITE
+        docker logs "$QA_ANDROID_CONTAINER" > .qa-results/$QA_SUITE/container.log 2>&1 || true
+        docker inspect "$QA_ANDROID_CONTAINER" > .qa-results/$QA_SUITE/container-inspect.json 2>&1 || true
+        docker rm -f "$QA_ANDROID_CONTAINER" || true
+    - name: Retain missing-suite prerequisite holds
+      if: failure()
+      run: python tool/perf/unavailable.py
+    - name: Prepare downloadable evidence
+      if: always()
+      run: |-
+        mkdir -p performance-evidence .qa-results
+        cp -a .qa-results/. performance-evidence/
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      if: always()
+      with:
+        name: VITALIS-perf-android-latency-Excel-and-evidence
+        path: performance-evidence/
+        retention-days: 30
+        if-no-files-found: error
+  host_early:
+    name: 'Ordered host early: 50 cases per suite'
+    needs:
+    - android_latency
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      PERF_SUITES: throughput,stress,spike
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+    - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      with:
+        python-version: '3.12'
+    - run: python -m pip install -r tool/qa/requirements.txt
+    - name: Verify report and measurement contracts
+      run: python tool/qa/test_reporting.py && python tool/perf/test_contracts.py
+    - id: policy
+      run: node -e 'const fs=require("fs"),p=JSON.parse(fs.readFileSync("tool/toolchain_policy.json")); for(const k of ["flutter","jdk"])fs.appendFileSync(process.env.GITHUB_OUTPUT,k+"="+p[k]+"\n");'
+    - uses: ./.github/actions/setup
+      with:
+        flutter: ${{ steps.policy.outputs.flutter }}
+        jdk: ${{ steps.policy.outputs.jdk }}
+    - run: ./tool/run_gate.sh pub get --enforce-lockfile
+    - name: Read immutable model authority
+      run: |-
+        dart tool/export_bundled_model_manifest.dart > "$RUNNER_TEMP/model.json"
+        node <<'NODE'
+        const fs=require('fs'),path=require('path'),m=JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP,'model.json')));
+        for(const [k,v] of Object.entries({MODEL_PATH:path.join(process.env.GITHUB_WORKSPACE,'.ci-model-cache',m.fileName),MODEL_SHA256:m.sha256,MODEL_URL:m.url})){
+        if(typeof v!=='string'||/[\r\n]/.test(v))throw Error('Invalid fixture authority');
+        fs.appendFileSync(process.env.GITHUB_ENV,k+'='+v+'\n');
+        }
+        NODE
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      with:
+        path: .ci-model-cache
+        key: bundled-qwen-${{ env.MODEL_SHA256 }}
+    - name: Verify immutable native fixture
+      run: |-
+        set -euo pipefail
+        mkdir -p .ci-model-cache
+        if ! echo "$MODEL_SHA256  $MODEL_PATH" | sha256sum --check --status; then
+        curl --fail --location --retry 4 --output "$MODEL_PATH.part" "$MODEL_URL"
+        echo "$MODEL_SHA256  $MODEL_PATH.part" | sha256sum --check
+        mv "$MODEL_PATH.part" "$MODEL_PATH"
+        fi
+    - name: Format and analyze maintained performance tests
+      run: |-
+        dart format --output=none --set-exit-if-changed test_performance
+        ./tool/run_gate.sh analyze test_performance --no-pub
+    - name: Run ordered production-component workloads
+      env:
+        VITALIS_TEST_MODEL: ${{ env.MODEL_PATH }}
+      run: python tool/perf/host.py
+    - name: Retain missing-suite prerequisite holds
+      if: failure()
+      run: python tool/perf/unavailable.py
+    - name: Prepare downloadable evidence
+      if: always()
+      run: |-
+        mkdir -p performance-evidence .qa-results
+        cp -a .qa-results/. performance-evidence/
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      if: always()
+      with:
+        name: VITALIS-perf-host-early-Excel-and-evidence
+        path: performance-evidence/
+        retention-days: 30
+        if-no-files-found: error
+  android_extended:
+    name: 'Ordered Android extended: 50 cases per suite'
+    needs:
+    - host_early
+    - prepare
+    if: ${{ !cancelled() && needs.prepare.result == 'success' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    env:
+      QA_SUITE: endurance
+      QA_ANDROID_CONTAINER: vitalis-performance-android
+      ANDROID_SERIAL: 127.0.0.1:5555
+      QA_PERFORMANCE_GROUP: extended
+      PERF_SUITES: endurance,startup,smoothness,resources,recovery
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+    - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      with:
+        python-version: '3.12'
+    - run: python -m pip install -r tool/qa/requirements.txt
+    - name: Verify report and measurement contracts
+      run: python tool/qa/test_reporting.py && python tool/perf/test_contracts.py
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      with:
+        name: performance-profile-pair
+        path: .qa-apk
+    - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+      with:
+        node-version: '24'
+    - name: Install pinned Appium
+      run: npm install --global appium@3.9.0 && appium driver install uiautomator2@8.7.3
+    - name: Execute profile APK measurements
+      run: bash tool/qa/native_android.sh
+    - name: Retain container identity and logs
+      if: always()
+      run: |-
+        mkdir -p .qa-results/$QA_SUITE
+        docker logs "$QA_ANDROID_CONTAINER" > .qa-results/$QA_SUITE/container.log 2>&1 || true
+        docker inspect "$QA_ANDROID_CONTAINER" > .qa-results/$QA_SUITE/container-inspect.json 2>&1 || true
+        docker rm -f "$QA_ANDROID_CONTAINER" || true
+    - name: Retain missing-suite prerequisite holds
+      if: failure()
+      run: python tool/perf/unavailable.py
+    - name: Prepare downloadable evidence
+      if: always()
+      run: |-
+        mkdir -p performance-evidence .qa-results
+        cp -a .qa-results/. performance-evidence/
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      if: always()
+      with:
+        name: VITALIS-perf-android-extended-Excel-and-evidence
+        path: performance-evidence/
+        retention-days: 30
+        if-no-files-found: error
+  host_late:
+    name: 'Ordered host late: 50 cases per suite'
+    needs:
+    - android_extended
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      PERF_SUITES: volume,concurrency
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+    - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      with:
+        python-version: '3.12'
+    - run: python -m pip install -r tool/qa/requirements.txt
+    - name: Verify report and measurement contracts
+      run: python tool/qa/test_reporting.py && python tool/perf/test_contracts.py
+    - id: policy
+      run: node -e 'const fs=require("fs"),p=JSON.parse(fs.readFileSync("tool/toolchain_policy.json")); for(const k of ["flutter","jdk"])fs.appendFileSync(process.env.GITHUB_OUTPUT,k+"="+p[k]+"\n");'
+    - uses: ./.github/actions/setup
+      with:
+        flutter: ${{ steps.policy.outputs.flutter }}
+        jdk: ${{ steps.policy.outputs.jdk }}
+    - run: ./tool/run_gate.sh pub get --enforce-lockfile
+    - name: Read immutable model authority
+      run: |-
+        dart tool/export_bundled_model_manifest.dart > "$RUNNER_TEMP/model.json"
+        node <<'NODE'
+        const fs=require('fs'),path=require('path'),m=JSON.parse(fs.readFileSync(path.join(process.env.RUNNER_TEMP,'model.json')));
+        for(const [k,v] of Object.entries({MODEL_PATH:path.join(process.env.GITHUB_WORKSPACE,'.ci-model-cache',m.fileName),MODEL_SHA256:m.sha256,MODEL_URL:m.url})){
+        if(typeof v!=='string'||/[\r\n]/.test(v))throw Error('Invalid fixture authority');
+        fs.appendFileSync(process.env.GITHUB_ENV,k+'='+v+'\n');
+        }
+        NODE
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+      with:
+        path: .ci-model-cache
+        key: bundled-qwen-${{ env.MODEL_SHA256 }}
+    - name: Verify immutable native fixture
+      run: |-
+        set -euo pipefail
+        mkdir -p .ci-model-cache
+        if ! echo "$MODEL_SHA256  $MODEL_PATH" | sha256sum --check --status; then
+        curl --fail --location --retry 4 --output "$MODEL_PATH.part" "$MODEL_URL"
+        echo "$MODEL_SHA256  $MODEL_PATH.part" | sha256sum --check
+        mv "$MODEL_PATH.part" "$MODEL_PATH"
+        fi
+    - name: Format and analyze maintained performance tests
+      run: |-
+        dart format --output=none --set-exit-if-changed test_performance
+        ./tool/run_gate.sh analyze test_performance --no-pub
+    - name: Run ordered production-component workloads
+      env:
+        VITALIS_TEST_MODEL: ${{ env.MODEL_PATH }}
+      run: python tool/perf/host.py
+    - name: Retain missing-suite prerequisite holds
+      if: failure()
+      run: python tool/perf/unavailable.py
+    - name: Prepare downloadable evidence
+      if: always()
+      run: |-
+        mkdir -p performance-evidence .qa-results
+        cp -a .qa-results/. performance-evidence/
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      if: always()
+      with:
+        name: VITALIS-perf-host-late-Excel-and-evidence
+        path: performance-evidence/
+        retention-days: 30
+        if-no-files-found: error
+  regression:
+    name: 50 paired comparisons or explicit baseline hold
+    needs:
+    - host_late
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      PERF_SUITES: regression
+      BASELINE_RUN: ${{ inputs.baseline_run || '' }}
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+    - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      with:
+        python-version: '3.12'
+    - run: python -m pip install -r tool/qa/requirements.txt
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      with:
+        name: VITALIS-perf-android-latency-Excel-and-evidence
+        path: performance-inputs
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      if: ${{ inputs.baseline_run != '' }}
+      with:
+        name: VITALIS-perf-android-latency-Excel-and-evidence
+        path: performance-baseline
+        run-id: ${{ inputs.baseline_run }}
+        github-token: ${{ github.token }}
+    - run: python tool/perf/regression.py
+    - name: Retain missing-suite prerequisite holds
+      if: failure()
+      run: python tool/perf/unavailable.py
+    - name: Prepare downloadable evidence
+      if: always()
+      run: |-
+        mkdir -p performance-evidence .qa-results
+        cp -a .qa-results/. performance-evidence/
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      if: always()
+      with:
+        name: VITALIS-perf-regression-Excel-and-evidence
+        path: performance-evidence/
+        retention-days: 30
+        if-no-files-found: error
+  bundle:
+    name: Downloadable twelve-suite Excel report bundle
+    needs:
+    - android_latency
+    - host_early
+    - android_extended
+    - host_late
+    - regression
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      QA_JOB_RESULTS: ${{ toJSON(needs) }}
+      QA_SCOPE: 50 cases per suite; profile Android CI, real host native/model/storage workloads, explicit unavailable baseline/sensor holds.
+    steps:
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+    - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+      with:
+        python-version: '3.12'
+    - run: python -m pip install -r tool/qa/requirements.txt
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      with:
+        pattern: VITALIS-perf-*-Excel-and-evidence
+        path: qa-bundle
+    - name: Generate source-linked executive workbook
+      run: |-
+        python tool/perf/fill_missing.py
+        export QA_PROGRAMME="$(cat tool/perf/catalogue.json)"
+        python tool/qa/bundle.py
+    - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      if: always()
+      with:
+        name: VITALIS-Performance-Resilience-Excel-Bundle
+        path: qa-bundle/
+        retention-days: 30
+        if-no-files-found: error
