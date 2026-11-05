@@ -28,6 +28,8 @@ def frame_durations(text):
 
 def regression_pairs(current,baseline):
     if baseline is None: raise EvidenceUnavailable('No retained comparable performance baseline run was supplied')
+    if not current.get('measurements',{}).get('apk_source') or current['measurements']['apk_source']==baseline.get('measurements',{}).get('apk_source'):
+        raise EvidenceUnavailable('Cross-build regression requires a separately built candidate; use fresh_candidate')
     if current.get('measurements',{}).get('environment')!=baseline.get('measurements',{}).get('environment'):
         raise EvidenceUnavailable('Baseline environment/workload/build mode differs')
     a=current.get('measurements',{}).get('samples',[]); b=baseline.get('measurements',{}).get('samples',[])

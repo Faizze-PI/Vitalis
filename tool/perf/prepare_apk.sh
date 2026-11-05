@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 mkdir -p .qa-apk
-source=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$APK_RUN" --jq .head_sha)
+if [[ "${FRESH_CANDIDATE:-false}" = true ]]; then
+  source=$(git rev-parse HEAD)
+else
+  source=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$APK_RUN" --jq .head_sha)
+fi
 [[ "$source" =~ ^[a-f0-9]{40}$ ]]
 changes=$(git diff --name-only "$source" HEAD -- . ':!tool/qa' ':!tool/perf' ':!test_performance' ':!.github/workflows' ':!docs/testing')
 test -z "$changes" || { echo 'Profile APK source differs from the current application'; exit 2; }

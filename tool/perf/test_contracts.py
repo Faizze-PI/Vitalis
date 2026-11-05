@@ -26,8 +26,8 @@ class PerformanceContracts(unittest.TestCase):
         self.assertEqual(frame_durations('No frame samples'),[])
     def test_percentiles_are_nearest_rank_not_fabricated(self):
         self.assertEqual(percentile(range(1,51),.95),48)
-    def fixture(self):
-        return dict(status='PASS',measurements=dict(environment={'mode':'profile'},samples=[dict(name=str(i),measurements={'ui_ready_ms':100}) for i in range(50)]))
+    def fixture(self,source="candidate"):
+        return dict(status='PASS',measurements=dict(apk_source=source,environment={'mode':'profile'},samples=[dict(name=str(i),measurements={'ui_ready_ms':100}) for i in range(50)]))
     def test_missing_baseline_is_unavailable_not_pass(self):
         with self.assertRaises(EvidenceUnavailable):regression_pairs(self.fixture(),None)
     def test_different_environments_cannot_be_compared(self):
@@ -37,6 +37,8 @@ class PerformanceContracts(unittest.TestCase):
         for value in [float('nan'),0,-1,float('inf')]:
             other=self.fixture();other['measurements']['samples'][0]['measurements']['ui_ready_ms']=value
             with self.assertRaises(EvidenceUnavailable):regression_pairs(self.fixture(),other)
+    def test_same_apk_build_cannot_claim_cross_build_regression(self):
+        with self.assertRaises(EvidenceUnavailable):regression_pairs(self.fixture(),self.fixture())
     def test_only_complete_matching_pairs_are_accepted(self):
-        self.assertEqual(len(regression_pairs(self.fixture(),self.fixture())),50)
+        self.assertEqual(len(regression_pairs(self.fixture(),self.fixture('baseline'))),50)
 if __name__=='__main__':unittest.main()

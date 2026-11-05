@@ -10,6 +10,10 @@ name: Performance and resilience - 50 cases per suite
         description: Optional earlier matching performance run for regression
         type: string
         default: ''
+      fresh_candidate:
+        description: Build new debug/profile pair for a genuine cross-build comparison
+        type: boolean
+        default: false
   push:
     branches:
     - ci/performance-resilience-20261105
@@ -27,10 +31,11 @@ jobs:
   prepare:
     name: Verify source-matched profile APK and signing pair
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 90
     env:
       APK_RUN: ${{ inputs.apk_run || '41849803536' }}
       GH_TOKEN: ${{ github.token }}
+      FRESH_CANDIDATE: ${{ inputs.fresh_candidate || false }}
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
@@ -42,6 +47,24 @@ jobs:
         path: .qa-apk
         run-id: ${{ inputs.apk_run || '41849803536' }}
         github-token: ${{ github.token }}
+      if: ${{ !inputs.fresh_candidate }}
+    - id: policy
+      if: ${{ inputs.fresh_candidate }}
+      run: node -e 'const fs=require("fs"),p=JSON.parse(fs.readFileSync("tool/toolchain_policy.json")); for(const k of ["flutter","jdk"])fs.appendFileSync(process.env.GITHUB_OUTPUT,k+"="+p[k]+"\n");'
+    - uses: ./.github/actions/setup
+      if: ${{ inputs.fresh_candidate }}
+      with:
+        flutter: ${{ steps.policy.outputs.flutter }}
+        jdk: ${{ steps.policy.outputs.jdk }}
+    - name: Build independent candidate with the pinned toolchain
+      if: ${{ inputs.fresh_candidate }}
+      run: |-
+        set -euo pipefail
+        ./tool/run_gate.sh pub get --enforce-lockfile
+        ./tool/run_gate.sh build apk --debug --target-platform android-arm64 --no-pub
+        ./tool/run_gate.sh build apk --profile --target-platform android-arm64 --no-pub
+        mkdir -p .qa-apk
+        cp build/app/outputs/flutter-apk/app-debug.apk build/app/outputs/flutter-apk/app-profile.apk .qa-apk/
     - run: bash tool/perf/prepare_apk.sh
     - name: Prepare non-hidden APK artifact root
       run: |-
