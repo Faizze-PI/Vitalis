@@ -2,6 +2,7 @@
 import csv
 import hashlib
 import json
+import shutil
 from pathlib import Path
 import sys
 import xml.etree.ElementTree as ET
@@ -70,6 +71,15 @@ def consolidate(root):
         sheet.set_column(2, 8, 21)
         sheet.set_column(9, 10, 65)
     (root/'README.md').write_text('# VITALIS consolidated test evidence\n\n14 executed suites: 2,401 passing case records. The additional performance programme contains 300 of these records. Original reports and source/run identities are preserved in the two numbered folders.\n\nThe 38 tuning regression cases are included within BAS, not added again. They do not establish physical-device tuning performance. Smoothness, concurrency and regression suites were excluded by user scope. No new application tests run during consolidation. These scoped results do not establish production, physical-phone or comprehensive security ratification.\n', encoding='utf-8')
+    # Keep the original bundle layout; append newer tests in their own folder.
+    original = root/'01_Behaviour_API_Security'
+    for entry in original.iterdir():
+        target = root/entry.name
+        if target.exists():
+            raise ValueError('Original bundle path collision: ' + entry.name)
+        shutil.move(str(entry), str(target))
+    original.rmdir()
+    (root/'02_Performance_300').rename(root/'Additional-Tests')
     inventory = {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest() for p in root.rglob('*') if p.is_file() and p.name != 'SHA256_INVENTORY.json'}
     (root/'SHA256_INVENTORY.json').write_text(json.dumps(inventory, indent=2), encoding='utf-8')
     print(f'Verified {total} passing case records across 14 suites; final CSV/XLSX included.')
