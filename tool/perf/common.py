@@ -38,3 +38,7 @@ def regression_pairs(current,baseline):
         if not all(type(v) in (int,float) and math.isfinite(v) and v>0 for v in [before,after]):
             raise EvidenceUnavailable('Non-finite or missing baseline timing')
     return list(zip(a,b))
+
+def host_cpu_identity(path=Path('/proc/cpuinfo')):
+    keys={'CPU implementer','CPU architecture','CPU variant','CPU part','CPU revision','model name'}
+    return sorted(set(line.strip() for line in path.read_text().splitlines() if line.partition(':')[0].strip() in keys)) or ['unknown']

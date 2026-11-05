@@ -14,6 +14,12 @@ class PerformanceContracts(unittest.TestCase):
         self.assertEqual(jobs['host_early']['env']['PERF_SUITES'],'throughput,stress,spike')
         self.assertEqual(jobs['android_extended']['env']['PERF_SUITES'],'endurance,startup,smoothness,resources,recovery')
         self.assertEqual(jobs['host_late']['env']['PERF_SUITES'],'volume,concurrency')
+    def test_cpu_metadata_is_read_from_a_real_file_without_serials(self):
+        from common import host_cpu_identity
+        with tempfile.TemporaryDirectory() as folder:
+            path=Path(folder)/'cpuinfo'
+            path.write_text('processor : 0\nCPU implementer : 0x41\nSerial : private\nprocessor : 1\nCPU implementer : 0x41\n')
+            self.assertEqual(host_cpu_identity(path),['CPU implementer : 0x41'])
     def test_frame_parser_rejects_unfinished_or_invalid_frames(self):
         raw='Flags,IntendedVsync,FrameCompleted\n0,1000000,18000000\n1,1000000,20000000\n0,1000000,9223372036854775807\n0,500,100\n'
         self.assertEqual(frame_durations(raw),[17.0])

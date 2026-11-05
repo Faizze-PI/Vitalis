@@ -1,6 +1,6 @@
 """Profile-APK functional performance on owned native ARM Android only."""
 import hashlib,json,os,re,subprocess,time,traceback
-from common import ROOT,POLICY,Report,require,EvidenceUnavailable,frame_durations,percentile
+from common import ROOT,POLICY,Report,require,EvidenceUnavailable,frame_durations,percentile,host_cpu_identity
 from mobile import PACKAGE,adb,find_navigation_element,appium_http_metrics
 from history_fixture import seed,validate_environment
 from appium import webdriver
@@ -92,7 +92,7 @@ try:
     environment=dict(policy_version=POLICY['policy_version'],android_api=adb('shell','getprop','ro.build.version.sdk').strip(),
         abi=adb('shell','getprop','ro.product.cpu.abi').strip(),mode='profile',
         android_image='redroid-arm64-dc2024a9',screen='720x1280',cpus=3,memory_gib=6,
-        host_cpu=Path('/proc/cpuinfo').read_text().split('CPU implementer')[-1].splitlines()[:4])
+        host_cpu=host_cpu_identity())
     for suite in suites:
         report=Report(suite,minimum_cases=POLICY['cases'])
         report.metrics.update(environment=environment,scope='Native ARM Android CI profile APK; not physical-phone performance',
