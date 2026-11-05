@@ -15,7 +15,11 @@ void main() {
       jsonDecode(File('tool/perf/policy.json').readAsStringSync())
           as Map<String, dynamic>;
   final output = Platform.environment['VITALIS_PERF_METRICS'];
-  final count = policy['cases'] as int;
+  final catalogue =
+      jsonDecode(File('tool/perf/catalogue.json').readAsStringSync()) as List;
+  final count =
+      (catalogue.singleWhere((row) => row['name'] == suite) as Map)['minimum']
+          as int;
   Directory? sandbox;
   LlamaCppChatRepository? owner;
   final database = DatabaseHelper.instance;

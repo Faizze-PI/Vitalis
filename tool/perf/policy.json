@@ -1,5 +1,4 @@
 {
-  "cases": 50,
   "ui_action_budget_ms": 5000,
   "startup_budget_ms": 15000,
   "soak_interval_seconds": 12,

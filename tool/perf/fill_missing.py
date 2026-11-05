@@ -1,6 +1,6 @@
 """Produce explicit per-case HOLD workbooks for jobs that never produced reports."""
 import json,shutil
-from common import ROOT,CATALOGUE,POLICY,Report
+from common import ROOT,CATALOGUE,case_count,Report
 root=ROOT/'qa-bundle';root.mkdir(exist_ok=True)
 known=set()
 for path in root.rglob('results.json'):
@@ -8,8 +8,8 @@ for path in root.rglob('results.json'):
     except (OSError,ValueError,KeyError,TypeError): pass # Original malformed evidence remains; bundle rejects it.
 for item in CATALOGUE:
     if item['name'] in known: continue
-    report=Report(item['name'],minimum_cases=POLICY['cases'])
+    report=Report(item['name'],minimum_cases=case_count(item['name']))
     report.metrics['scope']='Generated prerequisite HOLD records, not executed test cases'
-    for index in range(POLICY['cases']):report.blocked(f'{item["name"]} case {index+1}','No valid suite report from required job '+item['job'])
+    for index in range(case_count(item['name'])):report.blocked(f'{item["name"]} case {index+1}','No valid suite report from required job '+item['job'])
     report.write()
     shutil.copytree(report.out,root/'unavailable'/item['name'],dirs_exist_ok=True)

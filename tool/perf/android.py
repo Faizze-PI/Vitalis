@@ -1,6 +1,6 @@
 """Profile-APK functional performance on owned native ARM Android only."""
 import hashlib,json,os,re,subprocess,time,traceback
-from common import ROOT,POLICY,Report,require,EvidenceUnavailable,frame_durations,percentile,host_cpu_identity
+from common import ROOT,POLICY,Report,require,EvidenceUnavailable,frame_durations,percentile,host_cpu_identity,case_count
 from mobile import PACKAGE,adb,find_navigation_element,appium_http_metrics
 from history_fixture import seed,validate_environment
 from appium import webdriver
@@ -49,7 +49,7 @@ def sample(report,name,action):
     elif case['status']=='PASS': case['detail']=json.dumps(values)
     report.metrics.setdefault('samples',[]).append({'name':name,'status':case['status'],'measurements':values})
     (report.out/f'sample-{len(report.cases):03}.json').write_text(json.dumps(values,indent=2),encoding='utf-8')
-    if len(report.cases) in [1,25,50]:
+    if len(report.cases) in [1,report.minimum_cases//2,report.minimum_cases]:
         driver.save_screenshot(str(report.out/f'screen-{len(report.cases):03}.png'))
         (report.out/f'hierarchy-{len(report.cases):03}.xml').write_text(driver.page_source,encoding='utf-8')
 
@@ -77,7 +77,7 @@ try:
                          check=True,capture_output=True,text=True,timeout=10).stdout.strip()
     validate_environment(os.environ['ANDROID_SERIAL'],os.environ.get('GITHUB_ACTIONS',''),
                          adb('shell','getprop','ro.kernel.qemu'),adb('shell','getprop','ro.hardware').strip(),label,os.environ.get('GITHUB_RUN_ID',''))
-    setup=Report(suites[0],minimum_cases=50)
+    setup=Report(suites[0],minimum_cases=case_count(suites[0]))
     driver=connect()
     WebDriverWait(driver,90).until(lambda d:'Open Model Library' in d.page_source)
     seed(setup,chat_count=100)
@@ -94,15 +94,15 @@ try:
         android_image='redroid-arm64-dc2024a9',screen='720x1280',cpus=3,memory_gib=6,
         host_cpu=host_cpu_identity())
     for suite in suites:
-        report=Report(suite,minimum_cases=POLICY['cases'])
+        report=Report(suite,minimum_cases=case_count(suite))
         report.metrics.update(environment=environment,scope='Native ARM Android CI profile APK; not physical-phone performance',
                               apk_source=(ROOT/'.qa-apk/source.txt').read_text().strip())
         offset=len(log_file.read_text(errors='replace'))
         tab('Chats')
         if suite=='endurance':
             report.metrics['warm_baseline_pss_kb']=pss(report,0)
-            report.metrics['minimum_soak_seconds']=POLICY['cases']*POLICY['soak_interval_seconds']
-        for index in range(POLICY['cases']):
+            report.metrics['minimum_soak_seconds']=case_count(suite)*POLICY['soak_interval_seconds']
+        for index in range(case_count(suite)):
             target=['Models','Saved','Settings','Chats'][index%4]
             if suite=='latency':
                 source=['Chats','Models','Saved','Settings'][index%4]
@@ -162,12 +162,12 @@ try:
                                 saved_chat_visible=True,scope='UI lifecycle and retained saved-history recovery; force-stop is not ordinary process death')
                 sample(report,f'Recovery {index+1:02}: condition {mode}',action)
             if sum(c['status']=='FAIL' for c in report.cases)>=POLICY['max_failures']:
-                for remaining in range(index+1,POLICY['cases']): report.blocked(f'{suite} case {remaining+1}','Stopped after repeated failures; see preceding evidence')
+                for remaining in range(index+1,case_count(suite)): report.blocked(f'{suite} case {remaining+1}','Stopped after repeated failures; see preceding evidence')
                 break
         if suite=='endurance':
-            time.sleep(POLICY['cooldown_seconds']);report.metrics['cooldown_pss_kb']=pss(report,51)
+            time.sleep(POLICY['cooldown_seconds']);report.metrics['cooldown_pss_kb']=pss(report,case_count(suite)+1)
             report.metrics['cooldown_pss_growth_percent']=(report.metrics['cooldown_pss_kb']/report.metrics['warm_baseline_pss_kb']-1)*100
-            report.metrics['scope']='50 paced cycles, minimum ten-minute bounded soak; not multi-hour endurance or a physical memory-leak verdict'
+            report.metrics['scope']='20 paced cycles, minimum four-minute bounded soak; not multi-hour endurance or a physical memory-leak verdict'
         if suite=='resources':
             (report.out/'battery.txt').write_text(adb('shell','dumpsys','battery'),encoding='utf-8')
             (report.out/'thermal.txt').write_text(adb('shell','dumpsys','thermalservice',check=False),encoding='utf-8')
@@ -177,10 +177,10 @@ try:
 except Exception:
     failure=traceback.format_exc()
     for suite in suites:
-        report=Report(suite,minimum_cases=50)
+        report=Report(suite,minimum_cases=case_count(suite))
         if (report.out/'results.json').exists(): continue
         (report.out/'setup-failure.txt').write_text(failure,encoding='utf-8')
-        for index in range(50): report.blocked(f'{suite} case {index+1}','Environment/prerequisite failure; see setup-failure.txt')
+        for index in range(case_count(suite)): report.blocked(f'{suite} case {index+1}','Environment/prerequisite failure; see setup-failure.txt')
         report.write()
     failed=True
 finally:

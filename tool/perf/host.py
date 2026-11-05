@@ -1,11 +1,11 @@
 """Runs real product host workloads, retaining their measured results and errors."""
 import json,os,subprocess,sys
-from common import ROOT,POLICY,Report
+from common import ROOT,case_count,Report
 sys.path.insert(0,str(ROOT/'tool/reporting'))
 from validation_report import parse_events
 suites=os.environ['PERF_SUITES'].split(','); failed=False
 for suite in suites:
-    report=Report(suite,minimum_cases=POLICY['cases'])
+    report=Report(suite,minimum_cases=case_count(suite))
     metrics=report.out/'host-metrics.jsonl'
     env={**os.environ,'VITALIS_PERF_SUITE':suite,'VITALIS_PERF_METRICS':str(metrics)}
     command=['./tool/run_gate.sh','test','test_performance/qualification_test.dart','--no-pub','--concurrency=1','--reporter=json','--fail-fast']
@@ -15,7 +15,7 @@ for suite in suites:
     cases,problems,terminal=parse_events(result.stdout,ROOT)
     observed={c['name'].rsplit(' ',1)[-1]:c for c in cases if suite+' sample ' in c['name']}
     measurements={str(r['case']):r for r in [json.loads(line) for line in metrics.read_text().splitlines()]} if metrics.exists() else {}
-    for index in range(1,POLICY['cases']+1):
+    for index in range(1,case_count(suite)+1):
         key=str(index);name=f'{suite} sample {index}';case=observed.get(key)
         if case is None:
             report.blocked(name,'Runner did not complete this declared case; inspect machine.jsonl');continue

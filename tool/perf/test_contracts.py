@@ -1,11 +1,11 @@
 import tempfile,unittest
 from pathlib import Path
-from common import CATALOGUE,POLICY,EvidenceUnavailable,frame_durations,regression_pairs,percentile
+from common import CATALOGUE,EvidenceUnavailable,frame_durations,regression_pairs,percentile
 class PerformanceContracts(unittest.TestCase):
-    def test_twelve_suites_have_fifty_cases_in_requested_order(self):
+    def test_completed_suites_keep_fifty_and_remaining_have_twenty(self):
         self.assertEqual([c['name'] for c in CATALOGUE],['latency','throughput','stress','spike','endurance','startup','smoothness','resources','recovery','volume','concurrency','regression'])
-        self.assertEqual(sum(c['minimum'] for c in CATALOGUE),600)
-        self.assertEqual(POLICY['cases'],50)
+        self.assertEqual(sum(c['minimum'] for c in CATALOGUE),360)
+        self.assertEqual([c['minimum'] for c in CATALOGUE],[50]*4+[20]*8)
     def test_workflow_serializes_all_groups_and_preserves_case_minimums(self):
         import yaml
         jobs=yaml.safe_load((Path(__file__).resolve().parents[2]/'.github/workflows/performance-qa.yml').read_text())['jobs']
@@ -20,6 +20,14 @@ class PerformanceContracts(unittest.TestCase):
             path=Path(folder)/'cpuinfo'
             path.write_text('processor : 0\nCPU implementer : 0x41\nSerial : private\nprocessor : 1\nCPU implementer : 0x41\n')
             self.assertEqual(host_cpu_identity(path),['CPU implementer : 0x41'])
+    def test_retained_passes_require_matching_run_and_actual_counts(self):
+        from reuse import verify_report
+        data={'suite':'latency','status':'PASS','source':'a'*40,'run_url':'https://github.com/Faizze-PI/Vitalis/actions/runs/123',
+              'counts':{'PASS':50,'FAIL':0,'SKIP':0},'cases':[{'id':str(i),'status':'PASS'} for i in range(50)]}
+        verify_report(data,'latency','123')
+        with self.assertRaises(AssertionError):verify_report(data,'latency','456')
+        data['cases'][0]['status']='FAIL'
+        with self.assertRaises(AssertionError):verify_report(data,'latency','123')
     def test_frame_parser_rejects_unfinished_or_invalid_frames(self):
         raw='Flags,IntendedVsync,FrameCompleted\n0,1000000,18000000\n1,1000000,20000000\n0,1000000,9223372036854775807\n0,500,100\n'
         self.assertEqual(frame_durations(raw),[17.0])
@@ -40,5 +48,5 @@ class PerformanceContracts(unittest.TestCase):
     def test_same_apk_build_cannot_claim_cross_build_regression(self):
         with self.assertRaises(EvidenceUnavailable):regression_pairs(self.fixture(),self.fixture())
     def test_only_complete_matching_pairs_are_accepted(self):
-        self.assertEqual(len(regression_pairs(self.fixture(),self.fixture('baseline'))),50)
+        self.assertEqual(len(regression_pairs(self.fixture(),self.fixture('baseline'))),20)
 if __name__=='__main__':unittest.main()

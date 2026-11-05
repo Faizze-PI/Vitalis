@@ -1,4 +1,4 @@
-name: Performance and resilience - 50 cases per suite
+name: Performance and resilience - retained 50 and remaining 20
 'on':
   workflow_dispatch:
     inputs:
@@ -14,6 +14,21 @@ name: Performance and resilience - 50 cases per suite
         description: Build new debug/profile pair for a genuine cross-build comparison
         type: boolean
         default: false
+      completed_run:
+        description: Reuse verified first-four suite reports from this run
+        type: string
+        default: ''
+      apk_artifact:
+        description: Artifact format in apk_run
+        type: choice
+        options:
+        - android-verification-apks
+        - performance-profile-pair
+        default: android-verification-apks
+      candidate_run:
+        description: Run containing the independently built candidate latency measurements
+        type: string
+        default: ''
   push:
     branches:
     - ci/performance-resilience-20261105
@@ -43,7 +58,7 @@ jobs:
         fetch-depth: 0
     - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
       with:
-        name: android-verification-apks
+        name: ${{ inputs.apk_artifact || 'android-verification-apks' }}
         path: .qa-apk
         run-id: ${{ inputs.apk_run || '41849803536' }}
         github-token: ${{ github.token }}
@@ -89,6 +104,8 @@ jobs:
       ANDROID_SERIAL: 127.0.0.1:5555
       QA_PERFORMANCE_GROUP: latency
       PERF_SUITES: latency
+      COMPLETED_RUN: ${{ inputs.completed_run || '' }}
+      GH_TOKEN: ${{ github.token }}
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
@@ -104,20 +121,35 @@ jobs:
       with:
         name: performance-profile-pair
         path: .qa-apk
+      if: ${{ inputs.completed_run == '' }}
     - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
       with:
         node-version: '24'
+      if: ${{ inputs.completed_run == '' }}
     - name: Install pinned Appium
       run: npm install --global appium@3.9.0 && appium driver install uiautomator2@8.7.3
+      if: ${{ inputs.completed_run == '' }}
     - name: Execute profile APK measurements
       run: bash tool/qa/native_android.sh
+      if: ${{ inputs.completed_run == '' }}
     - name: Retain container identity and logs
-      if: always()
+      if: ${{ always() && inputs.completed_run == '' }}
       run: |-
         mkdir -p .qa-results/$QA_SUITE
         docker logs "$QA_ANDROID_CONTAINER" > .qa-results/$QA_SUITE/container.log 2>&1 || true
         docker inspect "$QA_ANDROID_CONTAINER" > .qa-results/$QA_SUITE/container-inspect.json 2>&1 || true
         docker rm -f "$QA_ANDROID_CONTAINER" || true
+    - name: Download completed cases without re-executing them
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      if: ${{ inputs.completed_run != '' }}
+      with:
+        name: VITALIS-perf-android-latency-Excel-and-evidence
+        path: .qa-results
+        run-id: ${{ inputs.completed_run }}
+        github-token: ${{ github.token }}
+    - name: Verify retained result provenance and unchanged product
+      if: ${{ inputs.completed_run != '' }}
+      run: python tool/perf/reuse.py
     - name: Retain missing-suite prerequisite holds
       if: failure()
       run: python tool/perf/unavailable.py
@@ -142,6 +174,8 @@ jobs:
     timeout-minutes: 90
     env:
       PERF_SUITES: throughput,stress,spike
+      COMPLETED_RUN: ${{ inputs.completed_run || '' }}
+      GH_TOKEN: ${{ github.token }}
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
@@ -155,11 +189,14 @@ jobs:
       run: python -m pyflakes tool/qa tool/perf && python tool/qa/test_reporting.py && python tool/perf/test_contracts.py
     - id: policy
       run: node -e 'const fs=require("fs"),p=JSON.parse(fs.readFileSync("tool/toolchain_policy.json")); for(const k of ["flutter","jdk"])fs.appendFileSync(process.env.GITHUB_OUTPUT,k+"="+p[k]+"\n");'
+      if: ${{ inputs.completed_run == '' }}
     - uses: ./.github/actions/setup
       with:
         flutter: ${{ steps.policy.outputs.flutter }}
         jdk: ${{ steps.policy.outputs.jdk }}
+      if: ${{ inputs.completed_run == '' }}
     - run: ./tool/run_gate.sh pub get --enforce-lockfile
+      if: ${{ inputs.completed_run == '' }}
     - name: Read immutable model authority
       run: |-
         dart tool/export_bundled_model_manifest.dart > "$RUNNER_TEMP/model.json"
@@ -170,10 +207,12 @@ jobs:
         fs.appendFileSync(process.env.GITHUB_ENV,k+'='+v+'\n');
         }
         NODE
+      if: ${{ inputs.completed_run == '' }}
     - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
       with:
         path: .ci-model-cache
         key: bundled-qwen-${{ env.MODEL_SHA256 }}
+      if: ${{ inputs.completed_run == '' }}
     - name: Verify immutable native fixture
       run: |-
         set -euo pipefail
@@ -183,14 +222,28 @@ jobs:
         echo "$MODEL_SHA256  $MODEL_PATH.part" | sha256sum --check
         mv "$MODEL_PATH.part" "$MODEL_PATH"
         fi
+      if: ${{ inputs.completed_run == '' }}
     - name: Format and analyze maintained performance tests
       run: |-
         dart format --output=none --set-exit-if-changed test_performance
         ./tool/run_gate.sh analyze test_performance --no-pub
+      if: ${{ inputs.completed_run == '' }}
     - name: Run ordered production-component workloads
       env:
         VITALIS_TEST_MODEL: ${{ env.MODEL_PATH }}
       run: python tool/perf/host.py
+      if: ${{ inputs.completed_run == '' }}
+    - name: Download completed cases without re-executing them
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      if: ${{ inputs.completed_run != '' }}
+      with:
+        name: VITALIS-perf-host-early-Excel-and-evidence
+        path: .qa-results
+        run-id: ${{ inputs.completed_run }}
+        github-token: ${{ github.token }}
+    - name: Verify retained result provenance and unchanged product
+      if: ${{ inputs.completed_run != '' }}
+      run: python tool/perf/reuse.py
     - name: Retain missing-suite prerequisite holds
       if: failure()
       run: python tool/perf/unavailable.py
@@ -207,7 +260,7 @@ jobs:
         retention-days: 30
         if-no-files-found: error
   android_extended:
-    name: 'Ordered Android extended: 50 cases per suite'
+    name: 'Ordered Android remaining suites: 20 cases each'
     needs:
     - host_early
     - prepare
@@ -265,7 +318,7 @@ jobs:
         retention-days: 30
         if-no-files-found: error
   host_late:
-    name: 'Ordered host late: 50 cases per suite'
+    name: 'Ordered host volume and concurrency: 20 cases each'
     needs:
     - android_extended
     if: ${{ !cancelled() }}
@@ -338,7 +391,7 @@ jobs:
         retention-days: 30
         if-no-files-found: error
   regression:
-    name: 50 paired comparisons or explicit baseline hold
+    name: 20 comparisons over independent measured builds
     needs:
     - host_late
     if: ${{ !cancelled() }}
@@ -346,7 +399,8 @@ jobs:
     timeout-minutes: 10
     env:
       PERF_SUITES: regression
-      BASELINE_RUN: ${{ inputs.baseline_run || '' }}
+      BASELINE_RUN: ${{ inputs.baseline_run || inputs.completed_run || '' }}
+      CANDIDATE_RUN: ${{ inputs.candidate_run || '' }}
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:
@@ -360,12 +414,21 @@ jobs:
       with:
         name: VITALIS-perf-android-latency-Excel-and-evidence
         path: performance-inputs
+      if: ${{ inputs.candidate_run == '' }}
     - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
-      if: ${{ inputs.baseline_run != '' }}
+      with:
+        name: VITALIS-perf-android-latency-Excel-and-evidence
+        path: performance-inputs
+        run-id: ${{ inputs.candidate_run }}
+        github-token: ${{ github.token }}
+      if: ${{ inputs.candidate_run != '' }}
+      name: Download independently measured candidate
+    - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      if: ${{ inputs.baseline_run != '' || inputs.completed_run != '' }}
       with:
         name: VITALIS-perf-android-latency-Excel-and-evidence
         path: performance-baseline
-        run-id: ${{ inputs.baseline_run }}
+        run-id: ${{ inputs.baseline_run || inputs.completed_run }}
         github-token: ${{ github.token }}
     - run: python tool/perf/regression.py
     - name: Retain missing-suite prerequisite holds
@@ -396,7 +459,7 @@ jobs:
     timeout-minutes: 10
     env:
       QA_JOB_RESULTS: ${{ toJSON(needs) }}
-      QA_SCOPE: 50 cases per suite; profile Android CI, real host native/model/storage workloads, explicit unavailable baseline/sensor holds.
+      QA_SCOPE: '360 target cases: four retained 50-case suites plus eight 20-case suites; original sources and reuse provenance retained.'
     steps:
     - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       with:

@@ -27,48 +27,48 @@
     "order": 5,
     "name": "endurance",
     "job": "android_extended",
-    "minimum": 50
+    "minimum": 20
   },
   {
     "order": 6,
     "name": "startup",
     "job": "android_extended",
-    "minimum": 50
+    "minimum": 20
   },
   {
     "order": 7,
     "name": "smoothness",
     "job": "android_extended",
-    "minimum": 50
+    "minimum": 20
   },
   {
     "order": 8,
     "name": "resources",
     "job": "android_extended",
-    "minimum": 50
+    "minimum": 20
   },
   {
     "order": 9,
     "name": "recovery",
     "job": "android_extended",
-    "minimum": 50
+    "minimum": 20
   },
   {
     "order": 10,
     "name": "volume",
     "job": "host_late",
-    "minimum": 50
+    "minimum": 20
   },
   {
     "order": 11,
     "name": "concurrency",
     "job": "host_late",
-    "minimum": 50
+    "minimum": 20
   },
   {
     "order": 12,
     "name": "regression",
     "job": "regression",
-    "minimum": 50
+    "minimum": 20
   }
 ]

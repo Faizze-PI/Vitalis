@@ -3,6 +3,8 @@ set -euo pipefail
 mkdir -p .qa-apk
 if [[ "${FRESH_CANDIDATE:-false}" = true ]]; then
   source=$(git rev-parse HEAD)
+elif [[ -f .qa-apk/source.txt ]]; then
+  source=$(tr -d '\r\n' < .qa-apk/source.txt)
 else
   source=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$APK_RUN" --jq .head_sha)
 fi

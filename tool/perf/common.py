@@ -4,9 +4,12 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'tool/qa'))
 from report import Report,require
-__all__=['Report','ROOT','POLICY','CATALOGUE','require','EvidenceUnavailable','percentile','frame_durations','regression_pairs','host_cpu_identity']
+__all__=['Report','ROOT','POLICY','CATALOGUE','require','EvidenceUnavailable','percentile','frame_durations','regression_pairs','host_cpu_identity','case_count','baseline_samples']
 POLICY=json.loads((ROOT/'tool/perf/policy.json').read_text())
 CATALOGUE=json.loads((ROOT/'tool/perf/catalogue.json').read_text())
+def case_count(suite):
+    return next(row['minimum'] for row in CATALOGUE if row['name']==suite)
+
 class EvidenceUnavailable(Exception): pass
 
 def percentile(values,fraction):
@@ -26,21 +29,34 @@ def frame_durations(text):
         except (ValueError,IndexError,KeyError): continue
     return values
 
-def regression_pairs(current,baseline):
+def baseline_samples(environment,apk_source,baseline):
     if baseline is None: raise EvidenceUnavailable('No retained comparable performance baseline run was supplied')
-    if not current.get('measurements',{}).get('apk_source') or current['measurements']['apk_source']==baseline.get('measurements',{}).get('apk_source'):
+    values=baseline.get('measurements',{})
+    if not apk_source or apk_source==values.get('apk_source'):
         raise EvidenceUnavailable('Cross-build regression requires a separately built candidate; use fresh_candidate')
-    if current.get('measurements',{}).get('environment')!=baseline.get('measurements',{}).get('environment'):
-        raise EvidenceUnavailable('Baseline environment/workload/build mode differs')
-    a=current.get('measurements',{}).get('samples',[]); b=baseline.get('measurements',{}).get('samples',[])
-    if len(a)!=POLICY['cases'] or len(b)!=POLICY['cases'] or baseline.get('status')!='PASS':
-        raise EvidenceUnavailable('Baseline or current latency sample set is incomplete')
-    for left,right in zip(a,b):
-        if left['name']!=right['name']: raise EvidenceUnavailable('Baseline workloads differ')
-        before=right['measurements']['ui_ready_ms'];after=left['measurements']['ui_ready_ms']
-        if not all(type(v) in (int,float) and math.isfinite(v) and v>0 for v in [before,after]):
+    if environment!=values.get('environment'): raise EvidenceUnavailable('Baseline environment/workload/build mode differs')
+    samples=values.get('samples',[])
+    if len(samples)<case_count('regression') or baseline.get('status')!='PASS':
+        raise EvidenceUnavailable('Baseline latency sample set is incomplete')
+    selected=samples[:case_count('regression')]
+    for sample in selected:
+        value=sample['measurements']['ui_ready_ms']
+        if not(type(value) in (int,float) and math.isfinite(value) and value>0):
             raise EvidenceUnavailable('Non-finite or missing baseline timing')
-    return list(zip(a,b))
+    return selected
+
+def regression_pairs(current,baseline):
+    values=current.get('measurements',{})
+    before=baseline_samples(values.get('environment'),values.get('apk_source'),baseline)
+    after=values.get('samples',[])[:case_count('regression')]
+    if len(after)!=case_count('regression'): raise EvidenceUnavailable('Current latency sample set is incomplete')
+    for left,right in zip(after,before):
+        if left['name']!=right['name']: raise EvidenceUnavailable('Baseline workloads differ')
+        value=left['measurements']['ui_ready_ms']
+        if not(type(value) in (int,float) and math.isfinite(value) and value>0):
+            raise EvidenceUnavailable('Non-finite or missing candidate timing')
+    return list(zip(after,before))
+
 
 def host_cpu_identity(path=Path('/proc/cpuinfo')):
     keys={'CPU implementer','CPU architecture','CPU variant','CPU part','CPU revision','model name'}
