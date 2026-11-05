@@ -25,7 +25,7 @@ permissions:
   contents: read
   actions: read
 concurrency:
-  group: performance-${{ github.ref }}
+  group: performance-${{ github.ref }}-${{ inputs.fresh_candidate || false }}
   cancel-in-progress: false
 jobs:
   prepare:
