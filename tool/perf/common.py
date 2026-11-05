@@ -4,6 +4,7 @@ from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'tool/qa'))
 from report import Report,require
+__all__=['Report','ROOT','POLICY','CATALOGUE','require','EvidenceUnavailable','percentile','frame_durations','regression_pairs','host_cpu_identity']
 POLICY=json.loads((ROOT/'tool/perf/policy.json').read_text())
 CATALOGUE=json.loads((ROOT/'tool/perf/catalogue.json').read_text())
 class EvidenceUnavailable(Exception): pass

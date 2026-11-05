@@ -1,6 +1,5 @@
 """Produce explicit per-case HOLD workbooks for jobs that never produced reports."""
 import json,shutil
-from pathlib import Path
 from common import ROOT,CATALOGUE,POLICY,Report
 root=ROOT/'qa-bundle';root.mkdir(exist_ok=True)
 known=set()

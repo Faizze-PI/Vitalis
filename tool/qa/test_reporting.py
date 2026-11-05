@@ -1,4 +1,4 @@
-import importlib.util,json,os,shutil,tempfile,unittest
+import json,os,shutil,tempfile,unittest
 from pathlib import Path
 import report as module
 class ReportIntegrity(unittest.TestCase):

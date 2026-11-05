@@ -1,4 +1,4 @@
-import json, math, os, re, statistics, subprocess, time
+import json, math, os, re, statistics, subprocess
 from urllib.parse import quote
 from report import require
 PACKAGE='com.vitalis.vitalis_app'

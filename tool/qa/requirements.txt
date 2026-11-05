@@ -2,3 +2,4 @@ selenium==4.52.0
 Appium-Python-Client==6.1.4
 XlsxWriter==3.3.1
 PyYAML==6.0.3
+pyflakes==3.4.0

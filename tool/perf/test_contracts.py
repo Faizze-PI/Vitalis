@@ -1,4 +1,4 @@
-import copy,json,sys,tempfile,unittest
+import tempfile,unittest
 from pathlib import Path
 from common import CATALOGUE,POLICY,EvidenceUnavailable,frame_durations,regression_pairs,percentile
 class PerformanceContracts(unittest.TestCase):

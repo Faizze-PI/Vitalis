@@ -1,6 +1,6 @@
 """Runs real product host workloads, retaining their measured results and errors."""
 import json,os,subprocess,sys
-from common import ROOT,POLICY,Report,require
+from common import ROOT,POLICY,Report
 sys.path.insert(0,str(ROOT/'tool/reporting'))
 from validation_report import parse_events
 suites=os.environ['PERF_SUITES'].split(','); failed=False
